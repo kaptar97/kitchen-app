@@ -7,6 +7,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      injectRegister: false,
       includeAssets: ['apple-touch-icon.png'],
       manifest: {
         name: 'Kitchen',
@@ -25,6 +26,9 @@ export default defineConfig({
       workbox: {
         // Never cache Supabase API calls — always fresh data.
         navigateFallbackDenylist: [/^\/api/],
+        skipWaiting: true,
+        clientsClaim: true,
+        cleanupOutdatedCaches: true,
       },
     }),
   ],

@@ -18,7 +18,7 @@ export const LIBRARY = [
     'Stir in the cream, parmesan and sun-dried tomatoes and simmer until slightly thickened, 3 to 4 minutes.',
     'Add the spinach and stir until wilted. Return the chicken to the pan and spoon the sauce over it until hot.',
   ]),
-  R('garlic-butter-steak', '🥩', 'Garlic Butter Steak Bites', 4, 10, 10, ['Keto', 'Low-carb', 'Quick', 'Dinner'], [
+  R('garlic-butter-steak', '🥩', 'Garlic Butter Steak Bites', 4, 10, 10, ['High-protein', 'Keto', 'Low-carb', 'Quick', 'Dinner'], [
     '2 lb sirloin steak, cut into 1-inch cubes', '3 tbsp butter', '4 cloves garlic, minced', '1 tbsp olive oil',
     '1 tbsp chopped parsley', 'Salt and pepper to taste',
   ], [
@@ -38,7 +38,7 @@ export const LIBRARY = [
     'Whisk the eggs, cream, tomato paste and mustard and pour over the beef.',
     'Top with the rest of the cheddar and bake 25 to 30 minutes until set and golden. Scatter pickles on top.',
   ]),
-  R('salmon-lemon', '🐟', 'Lemon Butter Salmon', 4, 5, 15, ['Keto', 'Low-carb', 'Quick', 'Dinner'], [
+  R('salmon-lemon', '🐟', 'Lemon Butter Salmon', 4, 5, 15, ['High-protein', 'Keto', 'Low-carb', 'Quick', 'Dinner'], [
     '4 salmon fillets', '3 tbsp butter', '2 cloves garlic, minced', '1 lemon', '1 tsp dried dill', 'Salt and pepper to taste',
   ], [
     'Heat the oven to 400°F and line a baking sheet with foil.',
@@ -82,7 +82,7 @@ export const LIBRARY = [
     'Sprinkle on the bacon and mozzarella, cover, and cook 2 minutes until melted.',
     'Top with green onions.',
   ]),
-  R('egg-roll-bowl', '🥢', 'Egg Roll in a Bowl', 4, 10, 15, ['Keto', 'Low-carb', 'Quick', 'Dinner', 'Meal prep'], [
+  R('egg-roll-bowl', '🥢', 'Egg Roll in a Bowl', 4, 10, 15, ['High-protein', 'Keto', 'Low-carb', 'Quick', 'Dinner', 'Meal prep'], [
     '1 lb ground pork', '1 bag coleslaw mix', '3 cloves garlic, minced', '1 tbsp fresh ginger, grated', '3 tbsp soy sauce',
     '1 tsp sesame oil', '2 green onions, sliced',
   ], [
@@ -121,7 +121,7 @@ export const LIBRARY = [
     'Cook on low 8 hours until the pork pulls apart easily.',
     'Shred with two forks, drain most of the liquid, and stir in the barbecue sauce. Serve on buns.',
   ]),
-  R('crockpot-salsa-chicken', '🌮', 'Slow Cooker Salsa Chicken', 6, 5, 240, ['Crockpot', 'Kid-friendly', 'Low-carb', 'Dinner', 'Meal prep'], [
+  R('crockpot-salsa-chicken', '🌮', 'Slow Cooker Salsa Chicken', 6, 5, 240, ['High-protein', 'Crockpot', 'Kid-friendly', 'Low-carb', 'Dinner', 'Meal prep'], [
     '2 lb chicken breasts', '1 jar salsa', '1 tbsp taco seasoning', '4 oz cream cheese', '1 cup shredded Mexican cheese',
   ], [
     'Put the chicken in the slow cooker, sprinkle with taco seasoning and pour the salsa over it.',
@@ -203,7 +203,7 @@ export const LIBRARY = [
     'Slowly whisk in the milk and simmer, stirring, until thickened, about 4 minutes.',
     'Off the heat, stir in the cheese and garlic powder until smooth. Add the pasta, season, and stir.',
   ]),
-  R('turkey-burgers', '🍔', 'Juicy Turkey Burgers', 4, 10, 12, ['Kid-friendly', 'Quick', 'Dinner'], [
+  R('turkey-burgers', '🍔', 'Juicy Turkey Burgers', 4, 10, 12, ['High-protein', 'Kid-friendly', 'Quick', 'Dinner'], [
     '1 lb ground turkey', '1/4 cup breadcrumbs', '1 large egg', '1 tsp garlic powder', '1 tsp Worcestershire sauce',
     '4 hamburger buns', '4 slices cheddar', 'Salt and pepper to taste',
   ], [
@@ -213,7 +213,7 @@ export const LIBRARY = [
   ]),
 
   // ---------- Breakfast ----------
-  R('egg-muffins', '🧁', 'Sausage & Cheese Egg Muffins', 12, 10, 20, ['Keto', 'Low-carb', 'Breakfast', 'Meal prep', 'Kid-friendly'], [
+  R('egg-muffins', '🧁', 'Sausage & Cheese Egg Muffins', 12, 10, 20, ['High-protein', 'Keto', 'Low-carb', 'Breakfast', 'Meal prep', 'Kid-friendly'], [
     '10 large eggs', '1/2 lb breakfast sausage', '1 cup shredded cheddar', '1/2 cup spinach, chopped', '1/4 cup milk',
     'Salt and pepper to taste',
   ], [
@@ -231,7 +231,7 @@ export const LIBRARY = [
     'Cook 1/4-cup scoops on a buttered griddle over medium heat until bubbles form, then flip and cook 1 minute more.',
     'Serve with maple syrup.',
   ]),
-  R('bacon-egg-cups', '🥓', 'Bacon Egg Cups', 6, 5, 18, ['Keto', 'Low-carb', 'Breakfast', 'Quick'], [
+  R('bacon-egg-cups', '🥓', 'Bacon Egg Cups', 6, 5, 18, ['High-protein', 'Keto', 'Low-carb', 'Breakfast', 'Quick'], [
     '12 slices bacon', '6 large eggs', '1/4 cup shredded cheddar', 'Salt and pepper to taste',
   ], [
     'Heat the oven to 400°F. Partly cook the bacon in a skillet until just starting to brown but still bendable.',
@@ -249,7 +249,7 @@ export const LIBRARY = [
   ]),
 
   // ---------- Lunch / sides / snacks ----------
-  R('chicken-salad', '🥗', 'Classic Chicken Salad', 4, 10, 0, ['Keto', 'Low-carb', 'Lunch', 'Quick', 'Meal prep'], [
+  R('chicken-salad', '🥗', 'Classic Chicken Salad', 4, 10, 0, ['High-protein', 'Keto', 'Low-carb', 'Lunch', 'Quick', 'Meal prep'], [
     '3 cups cooked chicken, chopped', '1/2 cup mayonnaise', '1 celery stalk, diced', '1 tbsp mustard', '1 tbsp lemon juice',
     'Salt and pepper to taste',
   ], [
@@ -279,5 +279,161 @@ export const LIBRARY = [
     'Melt the peanut butter and coconut oil together until smooth.',
     'Stir in the cocoa, sweetener and vanilla.',
     'Pour into a mini muffin tin or silicone mold and freeze 30 minutes. Keep in the fridge.',
+  ]),
+  // ---------- Classics & high-protein ----------
+  R('chicken-burrito-bowls', '🌯', 'Chicken Burrito Bowls', 4, 15, 20, ['High-protein', 'Classic', 'Dinner', 'Meal prep', 'Kid-friendly'], [
+    '1 1/2 lb chicken breasts', '1 tbsp taco seasoning', '1 tbsp olive oil', '2 cups cooked rice', '1 can black beans, drained',
+    '1 cup corn', '1 cup salsa', '1 cup shredded Mexican cheese', '1/2 cup sour cream', '1 lime',
+  ], [
+    'Toss the chicken with the oil and taco seasoning.',
+    'Cook in a skillet over medium-high heat 6 to 7 minutes per side until cooked through. Rest 5 minutes and chop.',
+    'Warm the beans and corn together in a small pot or the microwave.',
+    'Build bowls: rice, chicken, beans and corn, salsa, cheese and sour cream. Squeeze lime over the top.',
+  ]),
+  R('beef-bean-burritos', '🌯', 'Beef & Bean Burritos', 6, 10, 15, ['Classic', 'High-protein', 'Kid-friendly', 'Dinner'], [
+    '1 lb ground beef', '1 tbsp taco seasoning', '1 can refried beans', '6 large flour tortillas', '1 1/2 cups shredded cheddar',
+    '1/2 cup salsa', '1/2 cup sour cream',
+  ], [
+    'Brown the beef, drain the fat, and stir in the taco seasoning with 1/4 cup water. Simmer 3 minutes.',
+    'Warm the refried beans.',
+    'Spread beans down the middle of each tortilla, add beef and cheese, then fold in the sides and roll up.',
+    'Toast seam-side down in a dry skillet 1 to 2 minutes per side until golden. Serve with salsa and sour cream.',
+  ]),
+  R('breakfast-burritos', '🌯', 'Freezer Breakfast Burritos', 8, 15, 15, ['High-protein', 'Breakfast', 'Meal prep', 'Classic'], [
+    '1 lb breakfast sausage', '10 large eggs', '2 cups frozen hash browns', '1 1/2 cups shredded cheddar', '8 large flour tortillas',
+    '1/2 cup salsa', 'Salt and pepper to taste',
+  ], [
+    'Brown the sausage and set aside. Cook the hash browns in the same pan until crisp.',
+    'Scramble the eggs with salt and pepper until just set.',
+    'Fill each tortilla with eggs, sausage, hash browns, cheese and a spoonful of salsa, then roll up tightly.',
+    'Eat now, or wrap each in foil and freeze. Reheat from frozen: microwave 2 minutes (no foil), turning halfway.',
+  ]),
+  R('chicken-quesadillas', '🧀', 'Cheesy Chicken Quesadillas', 4, 10, 15, ['Classic', 'Kid-friendly', 'Quick', 'Lunch', 'Dinner'], [
+    '2 cups cooked chicken, shredded', '8 flour tortillas', '2 cups shredded Mexican cheese', '1 tsp taco seasoning',
+    '1/2 cup salsa', '1/2 cup sour cream',
+  ], [
+    'Toss the chicken with the taco seasoning.',
+    'Sprinkle cheese on half of each tortilla, add chicken and a little more cheese, and fold over.',
+    'Cook in a dry skillet over medium heat 2 to 3 minutes per side until golden and melted.',
+    'Cut into wedges and serve with salsa and sour cream.',
+  ]),
+  R('steak-fajitas', '🫑', 'Steak Fajitas', 4, 15, 15, ['High-protein', 'Classic', 'Dinner'], [
+    '1 1/2 lb flank steak, thinly sliced', '2 bell peppers, sliced', '1 onion, sliced', '2 tbsp fajita seasoning', '2 tbsp olive oil',
+    '8 flour tortillas', '1 lime', '1/2 cup sour cream',
+  ], [
+    'Toss the steak with half the seasoning and 1 tbsp oil.',
+    'Sear the steak in a very hot skillet in batches, 1 to 2 minutes per side. Move to a plate.',
+    'Add the remaining oil, peppers, onion and seasoning and cook until charred and just tender, 5 to 6 minutes.',
+    'Return the steak, squeeze in the lime, and serve in warm tortillas with sour cream.',
+  ]),
+  R('philly-cheesesteak', '🥖', 'Philly Cheesesteaks', 4, 15, 15, ['Classic', 'High-protein', 'Dinner'], [
+    '1 1/2 lb ribeye steak, very thinly sliced', '1 onion, sliced', '1 green bell pepper, sliced', '8 slices provolone',
+    '4 hoagie rolls', '2 tbsp butter', 'Salt and pepper to taste',
+  ], [
+    'Tip: freeze the steak 30 minutes first so it slices paper-thin.',
+    'Cook the onion and pepper in 1 tbsp butter until soft and golden, about 8 minutes. Push to the side.',
+    'Add the remaining butter and the steak, season, and cook 2 to 3 minutes, chopping it up with your spatula.',
+    'Mix with the onions, split into 4 piles, lay provolone on top and let it melt. Scoop each pile into a toasted roll.',
+  ]),
+  R('chicken-parmesan', '🍗', 'Chicken Parmesan', 4, 15, 25, ['Classic', 'High-protein', 'Kid-friendly', 'Dinner'], [
+    '2 large chicken breasts, halved into thin cutlets', '1 cup breadcrumbs', '1/2 cup grated parmesan', '2 large eggs',
+    '1 1/2 cups marinara sauce', '1 1/2 cups shredded mozzarella', '3 tbsp olive oil', '1/2 lb spaghetti',
+  ], [
+    'Heat the oven to 425°F. Start the spaghetti in salted boiling water.',
+    'Beat the eggs in one bowl and mix the breadcrumbs and parmesan in another. Dip each cutlet in egg, then crumbs.',
+    'Fry in the oil over medium-high heat 3 minutes per side until golden. Move to a baking dish.',
+    'Spoon marinara over each cutlet, top with mozzarella, and bake 10 minutes until bubbly. Serve over spaghetti.',
+  ]),
+  R('teriyaki-chicken', '🍱', 'Teriyaki Chicken & Rice', 4, 10, 20, ['High-protein', 'Classic', 'Kid-friendly', 'Dinner', 'Meal prep'], [
+    '1 1/2 lb chicken thighs, cubed', '1/2 cup soy sauce', '1/4 cup brown sugar', '2 tbsp honey', '2 cloves garlic, minced',
+    '1 tsp fresh ginger, grated', '1 tbsp cornstarch', '3 cups cooked rice', '2 cups broccoli florets',
+  ], [
+    'Whisk the soy sauce, brown sugar, honey, garlic, ginger, cornstarch and 1/4 cup water.',
+    'Brown the chicken in an oiled skillet over medium-high heat until cooked through, 8 to 10 minutes.',
+    'Pour in the sauce and simmer until thick and glossy, 2 minutes.',
+    'Steam the broccoli and serve everything over rice.',
+  ]),
+  R('beef-broccoli', '🥦', 'Beef & Broccoli', 4, 15, 15, ['High-protein', 'Classic', 'Quick', 'Dinner'], [
+    '1 lb flank steak, thinly sliced', '4 cups broccoli florets', '1/3 cup soy sauce', '2 tbsp brown sugar', '1 tbsp cornstarch',
+    '2 cloves garlic, minced', '1 tsp sesame oil', '2 tbsp vegetable oil', '3 cups cooked rice',
+  ], [
+    'Toss the beef with the cornstarch.',
+    'Whisk the soy sauce, brown sugar, garlic, sesame oil and 1/4 cup water.',
+    'Sear the beef in hot oil in batches until browned, 2 minutes. Remove.',
+    'Stir-fry the broccoli 3 minutes, add the beef and sauce, and cook until thick. Serve over rice.',
+  ]),
+  R('sloppy-joes', '🍔', 'Sloppy Joes', 6, 5, 20, ['Classic', 'Kid-friendly', 'Quick', 'Dinner'], [
+    '1 1/2 lb ground beef', '1/2 onion, diced', '1 cup ketchup', '2 tbsp brown sugar', '1 tbsp mustard',
+    '1 tbsp Worcestershire sauce', '6 hamburger buns',
+  ], [
+    'Brown the beef with the onion and drain the fat.',
+    'Stir in the ketchup, brown sugar, mustard, Worcestershire and 1/4 cup water.',
+    'Simmer 10 minutes until thick. Pile onto toasted buns.',
+  ]),
+  R('meatball-subs', '🥖', 'Meatball Subs', 6, 20, 25, ['Classic', 'Kid-friendly', 'Dinner'], [
+    '1 lb ground beef', '1/2 cup breadcrumbs', '1/4 cup grated parmesan', '1 large egg', '1 tsp Italian seasoning',
+    '1 jar marinara sauce', '6 hoagie rolls', '6 slices provolone',
+  ], [
+    'Mix the beef, breadcrumbs, parmesan, egg and Italian seasoning. Roll into 18 meatballs.',
+    'Brown the meatballs in an oiled skillet, then add the marinara, cover, and simmer 15 minutes.',
+    'Put 3 meatballs and sauce in each roll, top with provolone, and broil 1 to 2 minutes until melted.',
+  ]),
+  R('greek-chicken-bowls', '🥙', 'Greek Chicken Bowls', 4, 15, 15, ['High-protein', 'Lunch', 'Dinner', 'Meal prep'], [
+    '1 1/2 lb chicken breasts', '2 tbsp olive oil', '1 lemon', '1 tsp dried oregano', '2 cloves garlic, minced',
+    '2 cups cooked rice', '1 cucumber, diced', '1 cup cherry tomatoes, halved', '1/2 cup feta cheese', '1/2 cup tzatziki',
+  ], [
+    'Marinate the chicken in the oil, lemon juice, oregano and garlic for at least 10 minutes.',
+    'Cook in a skillet or on the grill 6 to 7 minutes per side. Rest and slice.',
+    'Build bowls with rice, chicken, cucumber, tomatoes and feta. Top with tzatziki.',
+  ]),
+  R('turkey-chili', '🌶️', 'Turkey Chili with Beans', 6, 10, 35, ['High-protein', 'Classic', 'Dinner', 'Meal prep'], [
+    '1 1/2 lb ground turkey', '1 onion, diced', '2 cloves garlic, minced', '1 can kidney beans, drained', '1 can black beans, drained',
+    '1 can diced tomatoes', '1 can tomato sauce', '2 tbsp chili powder', '1 tsp ground cumin', 'Salt and pepper to taste',
+  ], [
+    'Brown the turkey with the onion in a large pot. Add the garlic for 1 minute.',
+    'Stir in everything else and bring to a simmer.',
+    'Simmer 25 to 30 minutes, stirring now and then. Top with cheese or sour cream if you like.',
+  ]),
+  R('chicken-alfredo', '🍝', 'Chicken Alfredo', 4, 10, 20, ['Classic', 'Kid-friendly', 'Dinner'], [
+    '1 lb fettuccine', '2 chicken breasts', '4 tbsp butter', '2 cloves garlic, minced', '1 1/2 cups heavy cream',
+    '1 cup grated parmesan', 'Salt and pepper to taste',
+  ], [
+    'Cook the fettuccine according to the package. Save 1/2 cup pasta water, then drain.',
+    'Season and cook the chicken in 1 tbsp butter, 6 to 7 minutes per side. Rest and slice.',
+    'Melt the rest of the butter, add the garlic, then the cream. Simmer 3 minutes and whisk in the parmesan.',
+    'Toss the pasta in the sauce (loosen with pasta water if needed) and top with the chicken.',
+  ]),
+  R('cajun-sausage-rice', '🍛', 'Cajun Sausage & Rice Skillet', 4, 10, 25, ['Classic', 'Dinner', 'Quick'], [
+    '1 package smoked sausage, sliced', '1 onion, diced', '1 bell pepper, diced', '1 cup long-grain rice', '1 can diced tomatoes',
+    '2 cups chicken broth', '2 tsp Cajun seasoning',
+  ], [
+    'Brown the sausage in a large skillet. Add the onion and pepper and cook 4 minutes.',
+    'Stir in the rice and Cajun seasoning for 1 minute.',
+    'Add the tomatoes and broth, bring to a boil, then cover and simmer on low 18 to 20 minutes until the rice is tender.',
+  ]),
+  R('shepherds-pie', '🥧', 'Shepherd’s Pie', 6, 20, 30, ['Classic', 'Kid-friendly', 'Dinner'], [
+    '1 1/2 lb ground beef', '1 onion, diced', '2 cups frozen peas and carrots', '2 tbsp tomato paste', '1 cup beef broth',
+    '1 tbsp Worcestershire sauce', '2 lb potatoes, peeled and cubed', '4 tbsp butter', '1/2 cup milk', '1 cup shredded cheddar',
+  ], [
+    'Boil the potatoes until tender, drain, and mash with the butter and milk. Season.',
+    'Heat the oven to 400°F. Brown the beef with the onion and drain.',
+    'Stir in the tomato paste, broth, Worcestershire and peas and carrots. Simmer 5 minutes.',
+    'Spread the beef in a baking dish, top with the mashed potatoes and cheddar, and bake 20 minutes until golden.',
+  ]),
+  R('bbq-chicken-sandwiches', '🍔', 'Slow Cooker BBQ Chicken Sandwiches', 6, 5, 240, ['Classic', 'Crockpot', 'Kid-friendly', 'High-protein', 'Dinner'], [
+    '2 lb chicken breasts', '1 1/2 cups barbecue sauce', '1/4 cup brown sugar', '1 tbsp Worcestershire sauce', '6 hamburger buns',
+    '1 cup coleslaw mix',
+  ], [
+    'Put the chicken in the slow cooker. Mix the barbecue sauce, brown sugar and Worcestershire and pour over.',
+    'Cook on low 4 hours or high 2 hours.',
+    'Shred the chicken in the sauce. Pile onto buns and top with coleslaw.',
+  ]),
+  R('protein-oats', '🥣', 'Protein Overnight Oats', 1, 5, 0, ['High-protein', 'Breakfast', 'Meal prep', 'Quick'], [
+    '1/2 cup rolled oats', '1/2 cup milk', '1/2 cup Greek yogurt', '1 scoop protein powder', '1 tbsp peanut butter',
+    '1/2 banana, sliced', '1 tsp honey',
+  ], [
+    'Stir the oats, milk, yogurt and protein powder together in a jar.',
+    'Top with peanut butter, banana and honey.',
+    'Cover and refrigerate overnight. Eat cold or warm it up.',
   ]),
 ]

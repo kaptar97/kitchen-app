@@ -7,7 +7,7 @@ const UNITS = {
   ml: /^(milliliters?|ml)$/, l: /^(liters?|l)$/, pinch: /^pinch(es)?$/, dash: /^dash(es)?$/,
   clove: /^cloves?$/, can: /^cans?$/, jar: /^jars?$/, pkg: /^(packages?|pkgs?\.?|packets?|bags?|boxes|box)$/,
   slice: /^slices?$/, stick: /^sticks?$/, bunch: /^bunch(es)?$/, head: /^heads?$/, qt: /^(quarts?|qts?\.?)$/,
-  pt: /^(pints?|pts?\.?)$/, gal: /^(gallons?|gal\.?)$/, sprig: /^sprigs?$/, handful: /^handfuls?$/,
+  pt: /^(pints?|pts?\.?)$/, gal: /^(gallons?|gal\.?)$/, sprig: /^sprigs?$/, handful: /^handfuls?$/, scoop: /^scoops?$/,
 }
 
 function num(tok) {
@@ -161,7 +161,7 @@ export function fmtQty(q) {
   return q.toFixed(1).replace(/\.0$/, '')
 }
 
-const UNIT_LABEL = { cup: ['cup', 'cups'], tbsp: ['tbsp', 'tbsp'], tsp: ['tsp', 'tsp'], oz: ['oz', 'oz'], lb: ['lb', 'lb'], clove: ['clove', 'cloves'], can: ['can', 'cans'], jar: ['jar', 'jars'], pkg: ['package', 'packages'], slice: ['slice', 'slices'], stick: ['stick', 'sticks'], bunch: ['bunch', 'bunches'], head: ['head', 'heads'], pinch: ['pinch', 'pinches'], dash: ['dash', 'dashes'], qt: ['qt', 'qt'], pt: ['pt', 'pt'], gal: ['gal', 'gal'], sprig: ['sprig', 'sprigs'], handful: ['handful', 'handfuls'], g: ['g', 'g'], kg: ['kg', 'kg'], ml: ['ml', 'ml'], l: ['l', 'l'] }
+const UNIT_LABEL = { cup: ['cup', 'cups'], tbsp: ['tbsp', 'tbsp'], tsp: ['tsp', 'tsp'], oz: ['oz', 'oz'], lb: ['lb', 'lb'], clove: ['clove', 'cloves'], can: ['can', 'cans'], jar: ['jar', 'jars'], pkg: ['package', 'packages'], slice: ['slice', 'slices'], stick: ['stick', 'sticks'], bunch: ['bunch', 'bunches'], head: ['head', 'heads'], pinch: ['pinch', 'pinches'], dash: ['dash', 'dashes'], qt: ['qt', 'qt'], pt: ['pt', 'pt'], gal: ['gal', 'gal'], sprig: ['sprig', 'sprigs'], handful: ['handful', 'handfuls'], scoop: ['scoop', 'scoops'], g: ['g', 'g'], kg: ['kg', 'kg'], ml: ['ml', 'ml'], l: ['l', 'l'] }
 
 // Display an ingredient line at a given scale (e.g. 2 = double).
 export function ingredientLine(ing, scale = 1) {
@@ -171,7 +171,7 @@ export function ingredientLine(ing, scale = 1) {
   return [fmtQty(q), unit, ing.name].filter(Boolean).join(' ')
 }
 
-export const TAG_PRESETS = ['Keto', 'Low-carb', 'Kid-friendly', 'Quick', 'Crockpot', 'Dinner', 'Breakfast', 'Lunch', 'Snack', 'Dessert', 'Meal prep']
+export const TAG_PRESETS = ['High-protein', 'Classic', 'Keto', 'Low-carb', 'Kid-friendly', 'Quick', 'Crockpot', 'Dinner', 'Breakfast', 'Lunch', 'Snack', 'Dessert', 'Meal prep']
 
 // Guess tags from imported keywords/title.
 export function guessTags(recipe) {
