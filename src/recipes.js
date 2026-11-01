@@ -5,7 +5,7 @@ const UNITS = {
   cup: /^(cups?|c\.?)$/, tbsp: /^(tablespoons?|tbsps?\.?|tbl\.?|tbs\.?|T)$/, tsp: /^(teaspoons?|tsps?\.?|t)$/,
   oz: /^(ounces?|oz\.?)$/, lb: /^(pounds?|lbs?\.?)$/, g: /^(grams?|g)$/, kg: /^(kilograms?|kgs?)$/,
   ml: /^(milliliters?|ml)$/, l: /^(liters?|l)$/, pinch: /^pinch(es)?$/, dash: /^dash(es)?$/,
-  clove: /^cloves?$/, can: /^cans?$/, jar: /^jars?$/, pkg: /^(packages?|pkgs?\.?|packets?)$/,
+  clove: /^cloves?$/, can: /^cans?$/, jar: /^jars?$/, pkg: /^(packages?|pkgs?\.?|packets?|bags?|boxes|box)$/,
   slice: /^slices?$/, stick: /^sticks?$/, bunch: /^bunch(es)?$/, head: /^heads?$/, qt: /^(quarts?|qts?\.?)$/,
   pt: /^(pints?|pts?\.?)$/, gal: /^(gallons?|gal\.?)$/, sprig: /^sprigs?$/, handful: /^handfuls?$/,
 }

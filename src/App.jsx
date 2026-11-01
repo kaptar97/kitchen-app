@@ -179,7 +179,7 @@ function Main({ session, household }) {
         {hh.loading ? <p className="muted center">Loading…</p> : <>
           {tab === 'home' && <HomeScreen {...common} onAdd={() => setSheet({ type: 'add' })} onScan={() => setSheet({ type: 'scan' })} />}
           {tab === 'inventory' && <InventoryScreen {...common} onAdd={(locationId) => setSheet({ type: 'add', preset: { locationId } })} />}
-          {tab === 'recipes' && <RecipesScreen ctx={ctx} onOpen={(r) => setSheet({ type: 'recipe', recipe: r })} onAdd={() => setSheet({ type: 'recipeForm' })} />}
+          {tab === 'recipes' && <RecipesScreen ctx={ctx} onToast={showToast} onOpen={(r) => setSheet({ type: 'recipe', recipe: r })} onAdd={() => setSheet({ type: 'recipeForm' })} />}
           {tab === 'list' && <ShoppingScreen ctx={ctx} locations={hh.locations} members={hh.household_members} onToast={showToast} />}
           {tab === 'settings' && <SettingsScreen ctx={ctx} household={household} members={hh.household_members} session={session} />}
         </>}

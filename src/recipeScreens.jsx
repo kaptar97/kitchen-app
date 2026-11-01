@@ -3,8 +3,10 @@ import { supabase } from './supabase'
 import { Sheet } from './components'
 import { addToList } from './actions'
 import {
-  parseIngredient, parsePastedRecipe, checkRecipe, ingredientLine, TAG_PRESETS, guessTags,
+  parseIngredient, parsePastedRecipe, checkRecipe, ingredientLine, TAG_PRESETS, guessTags, keyWords,
 } from './recipes'
+import { LIBRARY } from './library'
+import { itemIcon } from './icons'
 
 const timeText = (r) => {
   const t = (r.prep_minutes || 0) + (r.cook_minutes || 0)
@@ -14,72 +16,203 @@ const timeText = (r) => {
 
 function Thumb({ recipe, size = 56 }) {
   const [broken, setBroken] = useState(false)
-  return recipe.image_url && !broken
-    ? <img className="thumb" style={{ width: size, height: size }} src={recipe.image_url} alt="" loading="lazy" referrerPolicy="no-referrer" onError={() => setBroken(true)} />
-    : <span className="thumb thumb-empty" style={{ width: size, height: size }}>🍽️</span>
+  if (recipe.image_url && !broken) {
+    return <img className="thumb" style={{ width: size, height: size }} src={recipe.image_url} alt="" loading="lazy" referrerPolicy="no-referrer" onError={() => setBroken(true)} />
+  }
+  const emoji = recipe.emoji || LIBRARY.find((l) => l.title === recipe.title)?.emoji || itemIcon(recipe.title, '🍽️')
+  return <span className="thumb thumb-empty" style={{ width: size, height: size }}>{emoji}</span>
 }
 
-export function RecipesScreen({ ctx, onOpen, onAdd }) {
+// How a recipe stacks up against the house right now.
+export function recipeStatus(recipe, ctx, expiringItemIds) {
+  const checked = checkRecipe(recipe, ctx.items, ctx.inventory)
+  const real = checked.filter((i) => i.status !== 'staple')
+  const missing = real.filter((i) => i.status === 'missing')
+  const usesExpiring = [...new Set(real.filter((i) => i.status === 'have' && expiringItemIds.has(i.item.id)).map((i) => i.item.name))]
+  return { checked, have: real.length - missing.length, total: real.length, missing, usesExpiring }
+}
+
+function useExpiring(ctx) {
+  return useMemo(() => {
+    const today = new Date(); today.setHours(0, 0, 0, 0)
+    const ids = new Set()
+    ctx.inventory.forEach((r) => {
+      if (r.expires_on && Math.round((new Date(r.expires_on + 'T00:00:00') - today) / 86400000) <= 3) ids.add(r.item_id)
+    })
+    return ids
+  }, [ctx.inventory])
+}
+
+const shortName = (ing) => ing.item?.name || cleanName(ing.name)
+
+// Add every missing ingredient from several recipes, without duplicates.
+export async function addMissingFor(ctx, recipes, expiringIds) {
+  const seen = new Map()
+  for (const r of recipes) {
+    for (const m of recipeStatus(r, ctx, expiringIds).missing) {
+      const key = m.item?.id || keyWords(m.name).join(' ')
+      if (!seen.has(key)) seen.set(key, { name: shortName(m), itemId: m.item?.id })
+    }
+  }
+  for (const v of seen.values()) await addToList(ctx, v)
+  return seen.size
+}
+
+function RecipeRow({ r, st, selecting, selected, onTap, saved, showNeed }) {
+  return (
+    <button className={`row-item recipe-row ${selected ? 'selected' : ''}`} onClick={onTap}>
+      {selecting && <span className={`check ${selected ? 'on' : ''}`}>{selected ? '✓' : ''}</span>}
+      <Thumb recipe={r} />
+      <span className="row-body grow">
+        <span className="row-title">{r.title}</span>
+        <span className="row-sub">
+          {timeText(r) && <span>{timeText(r)}</span>}
+          {st.total > 0 && (st.missing.length === 0
+            ? <span className="exp ok">✓ Have everything</span>
+            : <span>Have {st.have} of {st.total}</span>)}
+          {saved && <span className="tag">Saved</span>}
+        </span>
+        {showNeed && st.missing.length > 0 && <span className="need-line">Need: {st.missing.map(shortName).join(', ')}</span>}
+        {st.usesExpiring.length > 0 && <span className="use-up">⏰ Uses up {st.usesExpiring.join(', ')}</span>}
+        {!showNeed && (r.tags || []).length > 0 && <span className="tag-row">{r.tags.slice(0, 3).map((t) => <span key={t} className="tag soft">{t}</span>)}</span>}
+      </span>
+    </button>
+  )
+}
+
+export function RecipesScreen({ ctx, onOpen, onAdd, onToast }) {
+  const [view, setView] = useState('cook')
   const [q, setQ] = useState('')
   const [tag, setTag] = useState(null)
-  const usedTags = useMemo(() => [...new Set(ctx.recipes.flatMap((r) => r.tags || []))].sort(), [ctx.recipes])
-  const list = ctx.recipes
+  const [includeLib, setIncludeLib] = useState(true)
+  const [selecting, setSelecting] = useState(false)
+  const [selected, setSelected] = useState(() => new Set())
+  const [busy, setBusy] = useState(false)
+  const expiring = useExpiring(ctx)
+
+  const savedTitles = useMemo(() => new Set(ctx.recipes.map((r) => r.title.toLowerCase())), [ctx.recipes])
+  const pool = view === 'mine' ? ctx.recipes
+    : view === 'browse' ? LIBRARY
+      : [...ctx.recipes, ...(includeLib ? LIBRARY.filter((l) => !savedTitles.has(l.title.toLowerCase())) : [])]
+
+  const allTags = useMemo(() => [...new Set(pool.flatMap((r) => r.tags || []))].sort(), [pool])
+  const rows = pool
     .filter((r) => !tag || (r.tags || []).includes(tag))
     .filter((r) => !q.trim() || r.title.toLowerCase().includes(q.trim().toLowerCase()) ||
       (r.ingredients || []).some((i) => i.name.toLowerCase().includes(q.trim().toLowerCase())))
-    .map((r) => {
-      const checked = checkRecipe(r, ctx.items, ctx.inventory).filter((i) => i.status !== 'staple')
-      return { r, have: checked.filter((i) => i.status === 'have').length, total: checked.length }
-    })
-    .sort((a, b) => a.r.title.localeCompare(b.r.title))
+    .map((r) => ({ r, st: recipeStatus(r, ctx, expiring) }))
+
+  const byId = new Map(rows.map((x) => [x.r.id, x]))
+  const toggle = (id) => setSelected((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n })
+  const tap = (r) => (selecting ? toggle(r.id) : onOpen(r))
+  const selectedRecipes = [...selected].map((id) => byId.get(id)?.r || [...ctx.recipes, ...LIBRARY].find((r) => r.id === id)).filter(Boolean)
+  const missingCount = (() => {
+    const keys = new Set()
+    selectedRecipes.forEach((r) => recipeStatus(r, ctx, expiring).missing.forEach((m) => keys.add(m.item?.id || keyWords(m.name).join(' '))))
+    return keys.size
+  })()
+
+  const addSelected = async () => {
+    setBusy(true)
+    const n = await addMissingFor(ctx, selectedRecipes, expiring)
+    setBusy(false)
+    onToast({ text: n ? `Added ${n} item${n === 1 ? '' : 's'} to the list` : 'You already have everything for those' })
+    setSelecting(false); setSelected(new Set())
+  }
+
+  // Sorting for "What can I make": fewest missing first, then recipes that use expiring food.
+  const rank = (a, b) => (a.st.missing.length - b.st.missing.length) || (b.st.usesExpiring.length - a.st.usesExpiring.length) ||
+    (b.st.have - a.st.have) || a.r.title.localeCompare(b.r.title)
+  const ready = rows.filter((x) => x.st.total > 0 && x.st.missing.length === 0).sort(rank)
+  const almost = rows.filter((x) => x.st.missing.length >= 1 && x.st.missing.length <= 2).sort(rank)
+  const useUp = rows.filter((x) => x.st.usesExpiring.length && x.st.missing.length > 2).sort(rank)
+  const sorted = [...rows].sort((a, b) => a.r.title.localeCompare(b.r.title))
+
+  const rowEl = (x, extra = {}) => (
+    <RecipeRow key={x.r.id} r={x.r} st={x.st} selecting={selecting} selected={selected.has(x.r.id)}
+      onTap={() => tap(x.r)} saved={view === 'browse' && savedTitles.has(x.r.title.toLowerCase())} {...extra} />
+  )
 
   return (
     <div className="screen">
-      <div className="add-bar">
+      <div className="tabs3">
+        {[['cook', 'What can I make'], ['mine', 'My recipes'], ['browse', 'Browse']].map(([id, label]) => (
+          <button key={id} className={view === id ? 'on' : ''} onClick={() => { setView(id); setTag(null) }}>{label}</button>
+        ))}
+      </div>
+      <div className="add-bar" style={{ marginTop: 10 }}>
         <div className="search-wrap" style={{ flex: 1, margin: 0 }}>
           <span className="search-icon"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg></span>
           <input className="search" placeholder="Search recipes or ingredients" value={q} onChange={(e) => setQ(e.target.value)} />
         </div>
-        <button className="primary" onClick={onAdd}>＋ New</button>
+        {view === 'mine'
+          ? <button className="primary" onClick={onAdd}>＋ New</button>
+          : <button className={selecting ? 'primary' : 'secondary'} onClick={() => { setSelecting(!selecting); setSelected(new Set()) }}>{selecting ? 'Done' : 'Select'}</button>}
       </div>
-      {usedTags.length > 0 && (
-        <div className="seg" style={{ marginTop: 10 }}>
-          <button className={!tag ? 'on' : ''} onClick={() => setTag(null)}>All</button>
-          {usedTags.map((t) => <button key={t} className={tag === t ? 'on' : ''} onClick={() => setTag(tag === t ? null : t)}>{t}</button>)}
-        </div>
+      <div className="seg" style={{ marginTop: 10 }}>
+        {view === 'mine' && ctx.recipes.length > 0 && <button className={selecting ? 'on' : ''} onClick={() => { setSelecting(!selecting); setSelected(new Set()) }}>{selecting ? '✓ Selecting' : 'Select'}</button>}
+        {view === 'cook' && <button className={includeLib ? 'on' : ''} onClick={() => setIncludeLib(!includeLib)}>{includeLib ? '✓ ' : ''}Include library</button>}
+        <button className={!tag ? 'on' : ''} onClick={() => setTag(null)}>All</button>
+        {allTags.map((t) => <button key={t} className={tag === t ? 'on' : ''} onClick={() => setTag(tag === t ? null : t)}>{t}</button>)}
+      </div>
+      {selecting && <p className="hint" style={{ marginTop: 10 }}>Tap recipes you want to make. Everything you’re missing goes on the shopping list.</p>}
+
+      {view === 'cook' && (
+        rows.length === 0 ? <div className="empty"><p>No recipes match.</p></div> : (
+          <>
+            <Group title="Ready to cook" count={ready.length}>
+              {ready.length ? ready.map((x) => rowEl(x)) : <p className="group-empty">Nothing fully stocked yet. Check “Almost there” below.</p>}
+            </Group>
+            {almost.length > 0 && (
+              <Group title="Almost there" count={almost.length}>
+                {almost.map((x) => rowEl(x, { showNeed: true }))}
+              </Group>
+            )}
+            {useUp.length > 0 && (
+              <Group title="Uses food expiring soon" count={useUp.length}>
+                {useUp.map((x) => rowEl(x, { showNeed: true }))}
+              </Group>
+            )}
+            {ctx.inventory.length === 0 && <p className="hint center" style={{ marginTop: 16 }}>Add what’s in your kitchen and this fills in automatically.</p>}
+          </>
+        )
       )}
-      {ctx.recipes.length === 0 ? (
-        <div className="empty">
-          <div className="empty-icon">📖</div>
-          <p>No recipes yet. Paste a link from any recipe site, paste the text, or type one in.</p>
-          <button className="primary" onClick={onAdd}>Add your first recipe</button>
-        </div>
-      ) : list.length === 0 ? (
-        <div className="empty"><p>No recipes match.</p></div>
-      ) : (
-        <section className="group">
-          <div className="group-card">
-            {list.map(({ r, have, total }) => (
-              <button className="row-item recipe-row" key={r.id} onClick={() => onOpen(r)}>
-                <Thumb recipe={r} />
-                <span className="row-body grow">
-                  <span className="row-title">{r.title}</span>
-                  <span className="row-sub">
-                    {timeText(r) && <span>{timeText(r)}</span>}
-                    {total > 0 && (
-                      <span className={have === total ? 'exp ok' : ''}>
-                        {have === total ? '✓ Have everything' : `Have ${have} of ${total}`}
-                      </span>
-                    )}
-                  </span>
-                  {(r.tags || []).length > 0 && <span className="tag-row">{r.tags.slice(0, 3).map((t) => <span key={t} className="tag soft">{t}</span>)}</span>}
-                </span>
-              </button>
-            ))}
+
+      {view === 'mine' && (
+        ctx.recipes.length === 0 ? (
+          <div className="empty">
+            <div className="empty-icon">📖</div>
+            <p>No saved recipes yet. Add your own, or save some from Browse.</p>
+            <div className="row" style={{ justifyContent: 'center' }}>
+              <button className="primary" onClick={onAdd}>Add a recipe</button>
+              <button className="secondary" onClick={() => setView('browse')}>Browse</button>
+            </div>
           </div>
-        </section>
+        ) : rows.length === 0 ? <div className="empty"><p>No recipes match.</p></div>
+          : <Group>{sorted.map((x) => rowEl(x))}</Group>
+      )}
+
+      {view === 'browse' && (
+        rows.length === 0 ? <div className="empty"><p>No recipes match.</p></div>
+          : <Group title="Starter recipes" count={rows.length}>{sorted.map((x) => rowEl(x))}</Group>
+      )}
+
+      {selecting && selected.size > 0 && (
+        <div className="select-bar">
+          <span><b>{selected.size}</b> recipe{selected.size === 1 ? '' : 's'} · {missingCount ? `${missingCount} to buy` : 'have everything'}</span>
+          <button className="primary" disabled={busy || !missingCount} onClick={addSelected}>{busy ? 'Adding…' : '🛒 Add to list'}</button>
+        </div>
       )}
     </div>
+  )
+}
+
+function Group({ title, count, children }) {
+  return (
+    <section className="group">
+      {title && <div className="group-head"><span>{title}{count != null && <span className="group-count">{count}</span>}</span></div>}
+      <div className="group-card">{children}</div>
+    </section>
   )
 }
 
@@ -93,9 +226,21 @@ export function RecipeDetailSheet({ ctx, recipe, onClose, onEdit, onToast }) {
 
   const addMissing = async () => {
     setBusy(true)
-    for (const m of missing) await addToList(ctx, { name: m.item?.name || cleanName(m.name), itemId: m.item?.id })
+    for (const m of missing) await addToList(ctx, { name: shortName(m), itemId: m.item?.id })
     setBusy(false)
     onToast({ text: `Added ${missing.length} item${missing.length === 1 ? '' : 's'} to the list` })
+  }
+  const alreadySaved = recipe.library && ctx.recipes.some((r) => r.title.toLowerCase() === recipe.title.toLowerCase())
+  const saveCopy = async () => {
+    setBusy(true)
+    const { error } = await supabase.from('recipes').insert({
+      household_id: ctx.householdId, created_by: ctx.userId, title: recipe.title, servings: recipe.servings,
+      prep_minutes: recipe.prep_minutes, cook_minutes: recipe.cook_minutes, ingredients: recipe.ingredients,
+      steps: recipe.steps, tags: recipe.tags, notes: null, source_url: null, image_url: null,
+    })
+    await ctx.reload('recipes')
+    setBusy(false)
+    onToast(error ? { text: 'Could not save: ' + error.message } : { text: 'Saved to your recipes — edit it any way you like' })
   }
   const del = async () => {
     if (!window.confirm(`Delete “${recipe.title}”?`)) return
@@ -107,7 +252,9 @@ export function RecipeDetailSheet({ ctx, recipe, onClose, onEdit, onToast }) {
   return (
     <Sheet title="" onClose={onClose}>
       <div className="recipe-detail">
-        {recipe.image_url && <img className="hero" src={recipe.image_url} alt="" referrerPolicy="no-referrer" onError={(e) => { e.currentTarget.style.display = 'none' }} />}
+        {recipe.image_url
+          ? <img className="hero" src={recipe.image_url} alt="" referrerPolicy="no-referrer" onError={(e) => { e.currentTarget.style.display = 'none' }} />
+          : <div className="hero-emoji">{recipe.emoji || LIBRARY.find((l) => l.title === recipe.title)?.emoji || itemIcon(recipe.title, '🍽️')}</div>}
         <h2>{recipe.title}</h2>
         <div className="meta-row">
           {recipe.prep_minutes ? <span>Prep {recipe.prep_minutes} min</span> : null}
@@ -151,10 +298,16 @@ export function RecipeDetailSheet({ ctx, recipe, onClose, onEdit, onToast }) {
         )}
         {recipe.notes && (<><div className="group-head" style={{ marginTop: 22 }}><span>Notes</span></div><p className="notes">{recipe.notes}</p></>)}
         {recipe.source_url && <a className="source" href={recipe.source_url} target="_blank" rel="noreferrer">View original recipe ↗</a>}
-        <div className="row" style={{ marginTop: 18 }}>
-          <button className="secondary" style={{ flex: 1 }} onClick={() => onEdit(recipe)}>Edit</button>
-          <button className="danger" onClick={del}>Delete</button>
-        </div>
+        {recipe.library ? (
+          alreadySaved
+            ? <p className="ready" style={{ marginTop: 18 }}>✓ Saved to your recipes</p>
+            : <button className="secondary big" style={{ marginTop: 18 }} disabled={busy} onClick={saveCopy}>⭐ Save to my recipes</button>
+        ) : (
+          <div className="row" style={{ marginTop: 18 }}>
+            <button className="secondary" style={{ flex: 1 }} onClick={() => onEdit(recipe)}>Edit</button>
+            <button className="danger" onClick={del}>Delete</button>
+          </div>
+        )}
       </div>
     </Sheet>
   )
