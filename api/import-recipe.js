@@ -1,6 +1,8 @@
 // Vercel serverless function: GET /api/import-recipe?url=https://...
 // Reads the schema.org "Recipe" data most recipe sites embed for Google, and returns a clean recipe.
 
+export const config = { maxDuration: 30 }
+
 const BLOCKED_HOST = /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|169\.254\.|0\.|\[?::1\]?$|.*\.internal$|.*\.local$)/i
 
 export default async function handler(req, res) {
@@ -13,28 +15,45 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'That doesn’t look like a web link.' })
   }
 
-  let html
+  // 1) Try the site directly. 2) If it blocks servers, go through a free page-reader service.
+  let html = await fetchDirect(target)
+  let recipe = html && extractRecipe(html)
+  if (!recipe) {
+    html = await fetchViaReader(target)
+    recipe = html && extractRecipe(html)
+  }
+  if (!recipe) return res.status(422).json({ error: 'Couldn’t read a recipe from that page. Copy the recipe text and use “Paste recipe text” instead.' })
+  recipe.source_url = target.toString()
+  return res.status(200).json(recipe)
+}
+
+async function fetchDirect(target) {
   try {
     const r = await fetch(target, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
-        Accept: 'text/html,application/xhtml+xml',
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.9',
       },
       redirect: 'follow',
-      signal: AbortSignal.timeout(12000),
+      signal: AbortSignal.timeout(9000),
     })
-    if (!r.ok) return res.status(422).json({ error: `That site said no (error ${r.status}). Try pasting the recipe text instead.` })
-    html = (await r.text()).slice(0, 3_000_000)
-  } catch {
-    return res.status(422).json({ error: 'Couldn’t reach that site. Try pasting the recipe text instead.' })
-  }
-
-  const recipe = extractRecipe(html)
-  if (!recipe) return res.status(422).json({ error: 'Couldn’t find a recipe on that page. Try pasting the recipe text instead.' })
-  recipe.source_url = target.toString()
-  return res.status(200).json(recipe)
+    if (!r.ok) return null
+    return (await r.text()).slice(0, 3_000_000)
+  } catch { return null }
 }
+
+async function fetchViaReader(target) {
+  try {
+    const r = await fetch(`https://r.jina.ai/${target.toString()}`, {
+      headers: { 'X-Return-Format': 'html', 'X-No-Cache': 'true' },
+      signal: AbortSignal.timeout(20000),
+    })
+    if (!r.ok) return null
+    return (await r.text()).slice(0, 3_000_000)
+  } catch { return null }
+}
+
 
 export function extractRecipe(html) {
   const blocks = [...html.matchAll(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)]
