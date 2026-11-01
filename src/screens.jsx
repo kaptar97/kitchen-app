@@ -1,48 +1,97 @@
 import { useMemo, useState } from 'react'
-import { ExpiryBadge, daysUntil, Sheet, LocationChips } from './components'
+import { daysUntil, Sheet, LocationChips } from './components'
 import {
   changeQty, removeRow, addToList, onList, checkOff, uncheck, deleteListEntry, clearBought,
 } from './actions'
 import { supabase } from './supabase'
+import { itemIcon } from './icons'
 
 const fmt = (n) => (Number.isInteger(Number(n)) ? Number(n) : Number(n).toFixed(1))
 
-export function InventoryRow({ ctx, row, showLocation, locations, onEdit, onToast }) {
+function expiryText(date) {
+  const n = daysUntil(date)
+  if (n === null) return null
+  if (n < 0) return { text: `Expired ${-n === 1 ? 'yesterday' : `${-n} days ago`}`, cls: 'bad' }
+  if (n === 0) return { text: 'Expires today', cls: 'bad' }
+  if (n === 1) return { text: 'Expires tomorrow', cls: 'warn' }
+  if (n <= 3) return { text: `Expires in ${n} days`, cls: 'warn' }
+  return { text: `Expires ${new Date(date + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`, cls: '' }
+}
+
+// One item in a grouped list: icon · name/details · quantity stepper. Tap the row for more actions.
+export function InventoryRow({ ctx, row, showLocation, locations, onOpen, onToast }) {
   const item = ctx.items.find((i) => i.id === row.item_id)
   const loc = locations.find((l) => l.id === row.location_id)
-  const listed = onList(ctx, item?.id)
   if (!item) return null
+  const listed = onList(ctx, item.id)
+  const exp = expiryText(row.expires_on)
 
-  const used = async () => {
-    await removeRow(ctx, row)
-    const stillHave = ctx.inventory.some((r) => r.item_id === item.id && r.id !== row.id)
-    if (!stillHave && !onList(ctx, item.id)) {
-      onToast({ text: `Used up ${item.name}`, action: { label: 'Add to list', run: () => addToList(ctx, { name: item.name, itemId: item.id }) } })
-    } else onToast({ text: `Used up ${item.name}` })
-  }
-  const low = async () => {
-    await addToList(ctx, { name: item.name, itemId: item.id })
-    onToast({ text: `${item.name} added to shopping list` })
+  const minus = async () => {
+    if (Number(row.quantity) <= 1) {
+      await removeRow(ctx, row)
+      const stillHave = ctx.inventory.some((r) => r.item_id === item.id && r.id !== row.id)
+      onToast(stillHave || listed ? { text: `Used up ${item.name}` }
+        : { text: `Used up ${item.name}`, action: { label: 'Add to list', run: () => addToList(ctx, { name: item.name, itemId: item.id }) } })
+    } else changeQty(ctx, row, -1)
   }
 
   return (
-    <div className="inv-row">
-      <button className="inv-main" onClick={() => onEdit(row)}>
-        <span className="inv-name">{item.name}</span>
-        <span className="inv-meta">
-          {fmt(row.quantity)} {row.unit}
-          {showLocation && loc && <> · {loc.icon} {loc.name}</>}
-          {listed && <> · 🛒</>}
+    <div className="row-item">
+      <button className="row-tap" onClick={() => onOpen(row)}>
+        <span className="row-icon">{itemIcon(item.name, loc?.icon)}</span>
+        <span className="row-body">
+          <span className="row-title">{item.name}</span>
+          <span className="row-sub">
+            {showLocation && loc && <span>{loc.name}</span>}
+            {exp && <span className={`exp ${exp.cls}`}>{exp.text}</span>}
+            {listed && <span className="tag">On list</span>}
+          </span>
         </span>
-        <ExpiryBadge date={row.expires_on} />
       </button>
-      <div className="inv-actions">
-        <button aria-label="One less" onClick={() => changeQty(ctx, row, -1)}>−</button>
-        <button aria-label="One more" onClick={() => changeQty(ctx, row, 1)}>+</button>
-        <button className={`low ${listed ? 'on' : ''}`} onClick={low} disabled={listed}>Low</button>
-        <button className="used" onClick={used}>Used</button>
+      <div className="qty">
+        <button onClick={minus} aria-label="One less">−</button>
+        <span className="qty-n">{fmt(row.quantity)}<small>{row.unit !== 'ct' ? ` ${row.unit}` : ''}</small></span>
+        <button onClick={() => changeQty(ctx, row, 1)} aria-label="One more">+</button>
       </div>
     </div>
+  )
+}
+
+// Tap a row → big, clear actions.
+export function ItemActionsSheet({ ctx, row, locations, onClose, onEdit, onToast }) {
+  const item = ctx.items.find((i) => i.id === row.item_id)
+  const loc = locations.find((l) => l.id === row.location_id)
+  if (!item) return null
+  const listed = onList(ctx, item.id)
+  return (
+    <Sheet title={<span className="sheet-title-icon">{itemIcon(item.name, loc?.icon)} {item.name}</span>} onClose={onClose}>
+      <p className="hint">{fmt(row.quantity)} {row.unit}{loc ? ` · ${loc.name}` : ''}</p>
+      <div className="action-list">
+        <button disabled={listed} onClick={async () => { await addToList(ctx, { name: item.name, itemId: item.id }); onToast({ text: `${item.name} added to list` }); onClose() }}>
+          <span>🛒</span>{listed ? 'Already on the shopping list' : 'Running low — add to list'}
+        </button>
+        <button className="danger-action" onClick={async () => {
+          await removeRow(ctx, row)
+          onToast(listed ? { text: `Used up ${item.name}` } : { text: `Used up ${item.name}`, action: { label: 'Add to list', run: () => addToList(ctx, { name: item.name, itemId: item.id }) } })
+          onClose()
+        }}><span>✓</span>Used it all up</button>
+        <button onClick={() => onEdit(row)}><span>✎</span>Edit details & low-stock alert</button>
+      </div>
+    </Sheet>
+  )
+}
+
+function Group({ title, count, children, right }) {
+  return (
+    <section className="group">
+      {(title || right) && (
+        <div className="group-head">
+          <span>{title}{count != null && <span className="group-count">{count}</span>}</span>
+          {right}
+        </div>
+      )}
+      <div className="group-card">{children}</div>
+    </section>
   )
 }
 
@@ -52,10 +101,9 @@ function totals(ctx) {
   return t
 }
 
-export function HomeScreen({ ctx, locations, onAdd, onScan, onEdit, onToast }) {
+export function HomeScreen({ ctx, locations, onAdd, onScan, onOpen, onToast }) {
   const [q, setQ] = useState('')
   const itemName = (r) => ctx.items.find((i) => i.id === r.item_id)?.name || ''
-
   const results = q.trim()
     ? ctx.inventory.filter((r) => itemName(r).toLowerCase().includes(q.trim().toLowerCase()))
     : []
@@ -64,78 +112,94 @@ export function HomeScreen({ ctx, locations, onAdd, onScan, onEdit, onToast }) {
     .sort((a, b) => a.expires_on.localeCompare(b.expires_on))
   const t = totals(ctx)
   const runningLow = ctx.items.filter((i) => i.low_threshold !== null && (t[i.id] || 0) <= Number(i.low_threshold))
-  const missingFromSearch = q.trim() && results.length === 0
+  const rowProps = { ctx, locations, onOpen, onToast, showLocation: true }
 
   return (
     <div className="screen">
-      <input className="search" placeholder="🔍 Do we have…?" value={q} onChange={(e) => setQ(e.target.value)} />
+      <div className="search-wrap">
+        <span className="search-icon"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg></span>
+        <input className="search" placeholder="Do we have…?" value={q} onChange={(e) => setQ(e.target.value)} />
+        {q && <button className="search-clear" onClick={() => setQ('')} aria-label="Clear">✕</button>}
+      </div>
       {q.trim() ? (
-        <section>
-          {results.map((r) => <InventoryRow key={r.id} ctx={ctx} row={r} showLocation locations={locations} onEdit={onEdit} onToast={onToast} />)}
-          {missingFromSearch && (
-            <div className="empty">
-              <p>Nope, no “{q.trim()}” in the house.</p>
-              <button className="secondary" onClick={async () => { await addToList(ctx, { name: q }); onToast({ text: `${q.trim()} added to shopping list` }); setQ('') }}>🛒 Add to shopping list</button>
-            </div>
-          )}
-        </section>
+        results.length ? (
+          <Group title="In the house" count={results.length}>
+            {results.map((r) => <InventoryRow key={r.id} row={r} {...rowProps} />)}
+          </Group>
+        ) : (
+          <div className="empty">
+            <div className="empty-icon">🤷</div>
+            <p>No “{q.trim()}” in the house.</p>
+            <button className="primary" onClick={async () => { await addToList(ctx, { name: q }); onToast({ text: `${q.trim()} added to list` }); setQ('') }}>Add to shopping list</button>
+          </div>
+        )
       ) : (
         <>
-          <div className="big-actions">
-            <button className="primary huge" onClick={onAdd}>＋ Add</button>
-            <button className="primary huge alt" onClick={onScan}>📷 Scan</button>
+          <div className="quick-actions">
+            <button className="qa qa-add" onClick={onAdd}><span><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg></span>Add item</button>
+            <button className="qa qa-scan" onClick={onScan}><span><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 8V5h3M17 5h3v3M20 16v3h-3M7 19H4v-3" /><path d="M8 9v6M11 9v6M14 9v6M17 9v6" /></svg></span>Scan barcode</button>
           </div>
-          <section>
-            <h3>⏰ Expiring soon</h3>
-            {expiring.length === 0 ? <p className="muted">Nothing expiring in the next 3 days.</p>
-              : expiring.map((r) => <InventoryRow key={r.id} ctx={ctx} row={r} showLocation locations={locations} onEdit={onEdit} onToast={onToast} />)}
-          </section>
-          <section>
-            <h3>📉 Running low</h3>
-            {runningLow.length === 0 ? <p className="muted">Nothing low. Set a “low” level on any item by tapping it.</p>
+          <div className="stats">
+            <div><b>{ctx.inventory.length}</b><span>items</span></div>
+            <div className={expiring.length ? 'warn' : ''}><b>{expiring.length}</b><span>expiring</span></div>
+            <div><b>{ctx.shopping_list.filter((l) => !l.checked).length}</b><span>on list</span></div>
+          </div>
+          <Group title="Expiring soon" count={expiring.length || null}>
+            {expiring.length === 0 ? <p className="group-empty">Nothing expiring in the next 3 days.</p>
+              : expiring.map((r) => <InventoryRow key={r.id} row={r} {...rowProps} />)}
+          </Group>
+          <Group title="Running low" count={runningLow.length || null}>
+            {runningLow.length === 0 ? <p className="group-empty">Nothing low. Tap any item to set a low-stock alert.</p>
               : runningLow.map((i) => (
-                <div className="simple-row" key={i.id}>
-                  <span>{i.name} <span className="muted">({fmt(t[i.id] || 0)} left)</span></span>
-                  {onList(ctx, i.id) ? <span className="muted">🛒 On list</span>
-                    : <button className="chip" onClick={() => addToList(ctx, { name: i.name, itemId: i.id })}>Add to list</button>}
+                <div className="row-item" key={i.id}>
+                  <span className="row-tap static">
+                    <span className="row-icon">{itemIcon(i.name)}</span>
+                    <span className="row-body">
+                      <span className="row-title">{i.name}</span>
+                      <span className="row-sub"><span>{fmt(t[i.id] || 0)} left</span></span>
+                    </span>
+                  </span>
+                  {onList(ctx, i.id) ? <span className="tag">On list</span>
+                    : <button className="pill-btn" onClick={() => addToList(ctx, { name: i.name, itemId: i.id })}>Add to list</button>}
                 </div>
               ))}
-          </section>
+          </Group>
         </>
       )}
     </div>
   )
 }
 
-export function InventoryScreen({ ctx, locations, onEdit, onToast, onAdd }) {
+export function InventoryScreen({ ctx, locations, onOpen, onToast, onAdd }) {
   const [locId, setLocId] = useState('all')
-  const rows = useMemo(() => {
-    const name = (r) => ctx.items.find((i) => i.id === r.item_id)?.name || ''
-    return ctx.inventory
-      .filter((r) => locId === 'all' || r.location_id === locId)
-      .sort((a, b) => name(a).localeCompare(name(b)))
-  }, [ctx.inventory, ctx.items, locId])
+  const name = (r) => ctx.items.find((i) => i.id === r.item_id)?.name || ''
+  const byLoc = useMemo(() => {
+    const sorted = [...ctx.inventory].sort((a, b) => name(a).localeCompare(name(b)))
+    return locations.map((l) => ({ loc: l, rows: sorted.filter((r) => r.location_id === l.id) }))
+      .concat([{ loc: { id: null, name: 'Unsorted', icon: '📦' }, rows: sorted.filter((r) => !r.location_id) }])
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ctx.inventory, ctx.items, locations])
+  const shown = locId === 'all' ? byLoc.filter((g) => g.rows.length) : byLoc.filter((g) => g.loc.id === locId)
+  const rowProps = { ctx, locations, onOpen, onToast, showLocation: false }
 
   return (
     <div className="screen">
-      <div className="tabs-scroll">
-        <button className={`chip ${locId === 'all' ? 'on' : ''}`} onClick={() => setLocId('all')}>All</button>
-        {locations.map((l) => {
-          const n = ctx.inventory.filter((r) => r.location_id === l.id).length
-          return (
-            <button key={l.id} className={`chip ${locId === l.id ? 'on' : ''}`} onClick={() => setLocId(l.id)}>
-              {l.icon} {l.name} {n > 0 && <span className="count">{n}</span>}
-            </button>
-          )
-        })}
+      <div className="seg">
+        <button className={locId === 'all' ? 'on' : ''} onClick={() => setLocId('all')}>All</button>
+        {locations.map((l) => (
+          <button key={l.id} className={locId === l.id ? 'on' : ''} onClick={() => setLocId(l.id)}>{l.name}</button>
+        ))}
       </div>
-      {rows.length === 0 ? (
+      {shown.length === 0 || shown.every((g) => !g.rows.length) ? (
         <div className="empty">
+          <div className="empty-icon">{locId === 'all' ? '🏠' : locations.find((l) => l.id === locId)?.icon}</div>
           <p>Nothing here yet.</p>
-          <button className="secondary" onClick={() => onAdd(locId === 'all' ? undefined : locId)}>＋ Add something</button>
+          <button className="primary" onClick={() => onAdd(locId === 'all' ? undefined : locId)}>Add something</button>
         </div>
-      ) : rows.map((r) => (
-        <InventoryRow key={r.id} ctx={ctx} row={r} showLocation={locId === 'all'} locations={locations} onEdit={onEdit} onToast={onToast} />
+      ) : shown.map((g) => (
+        <Group key={g.loc.id || 'none'} title={`${g.loc.icon}  ${g.loc.name}`} count={g.rows.length}>
+          {g.rows.map((r) => <InventoryRow key={r.id} row={r} {...rowProps} />)}
+        </Group>
       ))}
     </div>
   )
@@ -143,7 +207,7 @@ export function InventoryScreen({ ctx, locations, onEdit, onToast, onAdd }) {
 
 export function ShoppingScreen({ ctx, locations, members, onToast }) {
   const [text, setText] = useState('')
-  const [picking, setPicking] = useState(null) // list entry waiting for a location
+  const [picking, setPicking] = useState(null)
   const open = ctx.shopping_list.filter((l) => !l.checked)
   const bought = ctx.shopping_list.filter((l) => l.checked)
   const who = (id) => members.find((m) => m.user_id === id)?.display_name
@@ -154,50 +218,50 @@ export function ShoppingScreen({ ctx, locations, members, onToast }) {
     await addToList(ctx, { name: text })
     setText('')
   }
-
   const tick = async (entry) => {
     const item = ctx.items.find((i) => i.id === entry.item_id) ||
       ctx.items.find((i) => i.name.toLowerCase() === entry.name.toLowerCase())
     if (item?.default_location_id) {
       await checkOff(ctx, entry, item.default_location_id)
       const loc = locations.find((l) => l.id === item.default_location_id)
-      onToast({ text: `${entry.name} → ${loc?.icon || ''} ${loc?.name || 'house'}` })
+      onToast({ text: `${entry.name} → ${loc?.name || 'house'}` })
     } else setPicking(entry)
   }
 
   return (
     <div className="screen">
-      <form className="row add-row" onSubmit={add}>
-        <input className="big-input" placeholder="Add to list…" value={text} onChange={(e) => setText(e.target.value)} />
-        <button className="primary">Add</button>
+      <form className="add-bar" onSubmit={add}>
+        <input placeholder="Add to list…" value={text} onChange={(e) => setText(e.target.value)} />
+        <button className="primary" disabled={!text.trim()}>Add</button>
       </form>
-      {open.length === 0 && <p className="muted center">List is empty. 🎉</p>}
-      {open.map((l) => (
-        <div className="list-row" key={l.id}>
-          <button className="check" onClick={() => tick(l)} aria-label="Bought" />
-          <div className="list-text">
-            <span>{l.name}{Number(l.quantity) !== 1 && <span className="muted"> × {fmt(l.quantity)}</span>}</span>
-            <span className="muted small">{l.auto ? 'Auto: running low' : who(l.added_by) ? `Added by ${who(l.added_by)}` : ''}</span>
-          </div>
-          <button className="icon-btn" onClick={() => deleteListEntry(ctx, l)} aria-label="Remove">✕</button>
-        </div>
-      ))}
-      {bought.length > 0 && (
-        <section>
-          <div className="row between">
-            <h3>Bought</h3>
-            <button className="chip" onClick={() => clearBought(ctx)}>Clear</button>
-          </div>
-          {bought.map((l) => (
-            <div className="list-row done" key={l.id}>
-              <button className="check on" onClick={() => uncheck(ctx, l)} aria-label="Not bought">✓</button>
-              <div className="list-text">
-                <span>{l.name}</span>
-                <span className="muted small">{who(l.checked_by) ? `Got it: ${who(l.checked_by)}` : ''}</span>
-              </div>
+      {open.length === 0 ? (
+        <div className="empty"><div className="empty-icon">✅</div><p>All caught up.</p></div>
+      ) : (
+        <Group title="To buy" count={open.length}>
+          {open.map((l) => (
+            <div className="row-item" key={l.id}>
+              <button className="check" onClick={() => tick(l)} aria-label="Bought" />
+              <span className="row-body grow">
+                <span className="row-title">{itemIcon(l.name, '')} {l.name}{Number(l.quantity) !== 1 && <span className="muted"> × {fmt(l.quantity)}</span>}</span>
+                <span className="row-sub">{l.auto ? <span className="exp warn">Running low</span> : who(l.added_by) && <span>{who(l.added_by)}</span>}</span>
+              </span>
+              <button className="icon-btn" onClick={() => deleteListEntry(ctx, l)} aria-label="Remove">✕</button>
             </div>
           ))}
-        </section>
+        </Group>
+      )}
+      {bought.length > 0 && (
+        <Group title="Bought" count={bought.length} right={<button className="text-btn" onClick={() => clearBought(ctx)}>Clear</button>}>
+          {bought.map((l) => (
+            <div className="row-item done" key={l.id}>
+              <button className="check on" onClick={() => uncheck(ctx, l)} aria-label="Not bought">✓</button>
+              <span className="row-body grow">
+                <span className="row-title">{l.name}</span>
+                <span className="row-sub">{who(l.checked_by) && <span>Got it: {who(l.checked_by)}</span>}</span>
+              </span>
+            </div>
+          ))}
+        </Group>
       )}
       {picking && (
         <Sheet title={`Where does ${picking.name} go?`} onClose={() => setPicking(null)}>
@@ -226,15 +290,19 @@ export function SettingsScreen({ ctx, household, members, session }) {
 
   return (
     <div className="screen">
-      <section>
-        <h3>🏠 {household.name}</h3>
+      <Group title={household.name} count={members.length}>
         {members.map((m) => (
-          <div className="simple-row" key={m.user_id}>
-            <span>{m.display_name}{m.user_id === session.user.id && ' (you)'}</span>
-            <span className="muted small">{m.role === 'owner' ? 'Owner' : 'Member'}</span>
+          <div className="row-item" key={m.user_id}>
+            <span className="row-tap static">
+              <span className="row-icon avatar">{(m.display_name || '?')[0].toUpperCase()}</span>
+              <span className="row-body">
+                <span className="row-title">{m.display_name}{m.user_id === session.user.id && <span className="muted"> (you)</span>}</span>
+                <span className="row-sub"><span>{m.role === 'owner' ? 'Owner' : 'Member'}</span></span>
+              </span>
+            </span>
           </div>
         ))}
-      </section>
+      </Group>
       <section>
         <h3>Invite family</h3>
         {!code ? <button className="primary big" onClick={invite}>Create invite link</button> : (

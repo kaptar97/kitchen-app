@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase, configured } from './supabase'
 import { useHousehold } from './useHousehold'
 import { AddItemSheet, EditSheet, ScannerSheet, Toast } from './components'
-import { HomeScreen, InventoryScreen, ShoppingScreen, SettingsScreen } from './screens'
+import { HomeScreen, InventoryScreen, ShoppingScreen, SettingsScreen, ItemActionsSheet } from './screens'
 
 // Remember an invite code from the link, even across the sign-in step.
 const urlJoin = new URLSearchParams(window.location.search).get('join')
@@ -140,11 +140,14 @@ function Onboarding({ onDone }) {
   )
 }
 
+const svg = (d) => (
+  <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">{d}</svg>
+)
 const TABS = [
-  { id: 'home', icon: '🏠', label: 'Home' },
-  { id: 'inventory', icon: '📦', label: 'Inventory' },
-  { id: 'list', icon: '🛒', label: 'List' },
-  { id: 'settings', icon: '⚙️', label: 'Family' },
+  { id: 'home', label: 'Home', icon: svg(<><path d="M3 10.5 12 3l9 7.5" /><path d="M5 9.5V20h14V9.5" /></>) },
+  { id: 'inventory', label: 'Inventory', icon: svg(<><rect x="4" y="3" width="16" height="18" rx="2" /><path d="M4 12h16M9 7.5h2M9 16.5h2" /></>) },
+  { id: 'list', label: 'List', icon: svg(<><path d="M9 6h11M9 12h11M9 18h11" /><path d="m3.5 6 1 1 2-2M3.5 12l1 1 2-2M3.5 18l1 1 2-2" /></>) },
+  { id: 'settings', label: 'Family', icon: svg(<><circle cx="9" cy="8" r="3.2" /><path d="M3 20c.6-3.4 3-5 6-5s5.4 1.6 6 5" /><circle cx="17" cy="9" r="2.5" /><path d="M16 14.2c2.6.1 4.4 1.6 5 4.8" /></>) },
 ]
 
 function Main({ session, household }) {
@@ -163,12 +166,12 @@ function Main({ session, household }) {
   const onScanResult = useCallback((r) => setSheet({ type: 'add', preset: r }), [])
   const listCount = hh.shopping_list.filter((l) => !l.checked).length
 
-  const common = { ctx, locations: hh.locations, onToast: showToast, onEdit: (row) => setSheet({ type: 'edit', row }) }
+  const common = { ctx, locations: hh.locations, onToast: showToast, onOpen: (row) => setSheet({ type: 'actions', row }) }
 
   return (
     <div className="app">
       <header className="top">
-        <span>{TABS.find((t) => t.id === tab).label === 'Home' ? `🥫 ${household.name}` : TABS.find((t) => t.id === tab).label}</span>
+        <h1>{tab === 'home' ? household.name : TABS.find((t) => t.id === tab).label}</h1>
       </header>
       <main>
         {hh.loading ? <p className="muted center">Loading…</p> : <>
@@ -180,7 +183,7 @@ function Main({ session, household }) {
       </main>
 
       {(tab === 'inventory' || tab === 'list') && (
-        <button className="fab" onClick={() => setSheet({ type: 'scan' })} aria-label="Scan">📷</button>
+        <button className="fab" onClick={() => setSheet({ type: 'scan' })} aria-label="Scan">{svg(<><path d="M4 8V5h3M17 5h3v3M20 16v3h-3M7 19H4v-3" /><path d="M8 9v6M11 9v6M14 9v6M17 9v6" /></>)}</button>
       )}
 
       <nav className="tabbar">
@@ -194,6 +197,7 @@ function Main({ session, household }) {
 
       {sheet?.type === 'add' && <AddItemSheet ctx={ctx} locations={hh.locations} preset={sheet.preset} onClose={() => setSheet(null)} onAdded={showToast} />}
       {sheet?.type === 'scan' && <ScannerSheet ctx={ctx} onClose={() => setSheet(null)} onResult={onScanResult} />}
+      {sheet?.type === 'actions' && <ItemActionsSheet ctx={ctx} row={sheet.row} locations={hh.locations} onClose={() => setSheet(null)} onEdit={(row) => setSheet({ type: 'edit', row })} onToast={showToast} />}
       {sheet?.type === 'edit' && <EditSheet ctx={ctx} row={sheet.row} locations={hh.locations} onClose={() => setSheet(null)} onToast={showToast} />}
       <Toast toast={toast} onDone={clearToast} />
     </div>
