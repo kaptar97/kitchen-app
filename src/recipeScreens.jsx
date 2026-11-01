@@ -160,7 +160,10 @@ export function RecipeDetailSheet({ ctx, recipe, onClose, onEdit, onToast }) {
   )
 }
 
-const cleanName = (n) => n.replace(/\b(large|small|medium|fresh|chopped|diced|minced|sliced)\b/gi, '').replace(/\s+/g, ' ').trim()
+const cleanName = (n) => {
+  const c = n.replace(/\b(large|small|medium|fresh|chopped|diced|minced|sliced)\b/gi, '').replace(/\s+/g, ' ').trim()
+  return c.charAt(0).toUpperCase() + c.slice(1)
+}
 
 export function RecipeFormSheet({ ctx, recipe, onClose, onSaved }) {
   const editing = Boolean(recipe?.id)
