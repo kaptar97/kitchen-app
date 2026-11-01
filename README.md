@@ -12,19 +12,10 @@ Shared inventory, one-tap updates, barcode scanning, and a live shopping list fo
 1. Supabase → your project → **SQL Editor** → **New query**.
 2. Paste the whole contents of `supabase/schema.sql` → **Run**. You should see "Success. No rows returned."
 
-### 2. Set up sign-in emails
-The app signs people in with a 6-digit code (works inside the home-screen app on iPhone, where email links don't).
-1. Supabase → **Authentication → Email Templates → Magic Link**.
-2. Replace the body with:
-   ```html
-   <h2>Your Kitchen sign-in code</h2>
-   <p style="font-size:28px;letter-spacing:4px"><b>{{ .Token }}</b></p>
-   <p>Or tap: <a href="{{ .ConfirmationURL }}">sign in</a></p>
-   ```
-3. Do the same for the **Confirm signup** template (first-time sign-ins use that one).
-4. **Authentication → URL Configuration**: set **Site URL** to your Vercel address (step 3), e.g. `https://kitchen-app-xyz.vercel.app`.
-
-> Supabase's built-in email sender only allows a few emails per hour. Fine for 4 people signing in once (everyone stays signed in). If it ever becomes a problem, add a free SMTP sender like Resend under **Project Settings → Authentication → SMTP**.
+### 2. Turn off email confirmation
+Family members sign in with email + password (works reliably in the home-screen app).
+Supabase → **Authentication → Sign In / Providers** → turn off **Confirm email** → Save.
+Then **Authentication → URL Configuration** → set **Site URL** to your Vercel address (step 3).
 
 ### 3. Deploy on Vercel
 1. Vercel → **Add New → Project** → import your `kitchen-app` GitHub repo.
@@ -46,8 +37,8 @@ Every time new code is pushed to GitHub, Vercel redeploys automatically.
 
 Do these with two phones (yours + one other person's).
 
-1. **Create household:** sign in on your phone → "Start a new household". You land on Home with Add/Scan buttons.
-2. **Invite:** Family tab → Create invite link → send it. On phone #2, open the link, sign in, tap Join. Family tab on both phones shows 2 people.
+1. **Create household:** create an account on your phone → "Start a new household". You land on Home with Add/Scan buttons.
+2. **Invite:** Family tab → Create invite link → send it. On phone #2, open the link, create an account, tap Join. Family tab on both phones shows 2 people.
 3. **Quick add:** Add → "Milk", 2, Fridge, +7d → Add to house. It appears on **phone #2 within a couple seconds** without refreshing.
 4. **Autocomplete:** Add → type "mi" → "Milk" chip appears → tap it, location auto-fills.
 5. **Scan:** Scan → point at any grocery barcode → name fills in → Add. Scan the same item again → it's recognized instantly.

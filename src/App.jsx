@@ -29,46 +29,43 @@ export default function App() {
 }
 
 function SignIn() {
+  const [mode, setMode] = useState(pendingJoin() ? 'signup' : 'signin')
   const [email, setEmail] = useState('')
-  const [sent, setSent] = useState(false)
-  const [code, setCode] = useState('')
+  const [password, setPassword] = useState('')
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
 
-  const send = async (e) => {
+  const submit = async (e) => {
     e.preventDefault(); setErr(''); setBusy(true)
-    const { error } = await supabase.auth.signInWithOtp({
-      email: email.trim(), options: { emailRedirectTo: window.location.origin },
-    })
+    const creds = { email: email.trim(), password }
+    const { data, error } = mode === 'signup'
+      ? await supabase.auth.signUp(creds)
+      : await supabase.auth.signInWithPassword(creds)
     setBusy(false)
-    if (error) setErr(error.message); else setSent(true)
-  }
-  const verify = async (e) => {
-    e.preventDefault(); setErr(''); setBusy(true)
-    const { error } = await supabase.auth.verifyOtp({ email: email.trim(), token: code.trim(), type: 'email' })
-    setBusy(false)
-    if (error) setErr('That code didn’t work. Check the newest email and try again.')
+    if (error) {
+      setErr(/invalid login/i.test(error.message) ? 'Wrong email or password.' : error.message)
+    } else if (mode === 'signup' && !data.session) {
+      setErr('Account created, but email confirmation is on. Ask Brett to turn it off in Supabase.')
+    }
   }
 
   return (
     <div className="center-page">
       <h1>🥫 Kitchen</h1>
-      <p className="muted">{pendingJoin() ? 'Sign in to join your family’s kitchen.' : 'Your family’s shared kitchen & house inventory.'}</p>
-      {!sent ? (
-        <form className="form" onSubmit={send}>
-          <input className="big-input" type="email" inputMode="email" autoComplete="email"
-            placeholder="Your email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-          <button className="primary big" disabled={busy}>{busy ? 'Sending…' : 'Email me a sign-in code'}</button>
-        </form>
-      ) : (
-        <form className="form" onSubmit={verify}>
-          <p>Check <b>{email}</b>. Type the code from the email here:</p>
-          <input className="big-input code-input" inputMode="numeric" autoComplete="one-time-code"
-            placeholder="123456" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} maxLength={8} />
-          <button className="primary big" disabled={busy || code.length < 6}>{busy ? 'Checking…' : 'Sign in'}</button>
-          <button type="button" className="link" onClick={() => { setSent(false); setCode('') }}>Use a different email</button>
-        </form>
-      )}
+      <p className="muted">{pendingJoin() ? 'Create an account to join your family’s kitchen.' : 'Your family’s shared kitchen & house inventory.'}</p>
+      <form className="form" onSubmit={submit}>
+        <input className="big-input" type="email" inputMode="email" autoComplete="email"
+          placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+        <input className="big-input" type="password" autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+          placeholder={mode === 'signup' ? 'Pick a password (6+ characters)' : 'Password'}
+          value={password} onChange={(e) => setPassword(e.target.value)} minLength={6} required />
+        <button className="primary big" disabled={busy}>
+          {busy ? 'One sec…' : mode === 'signup' ? 'Create account' : 'Sign in'}
+        </button>
+        <button type="button" className="link" onClick={() => { setMode(mode === 'signup' ? 'signin' : 'signup'); setErr('') }}>
+          {mode === 'signup' ? 'Already have an account? Sign in' : 'New here? Create an account'}
+        </button>
+      </form>
       {err && <p className="error">{err}</p>}
     </div>
   )
