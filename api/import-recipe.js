@@ -16,18 +16,19 @@ export default async function handler(req, res) {
   }
 
   // 1) Try the site directly. 2) If it blocks servers, go through a free page-reader service.
-  let html = await fetchDirect(target)
+  const debug = []
+  let html = await fetchDirect(target, debug)
   let recipe = html && extractRecipe(html)
   if (!recipe) {
-    html = await fetchViaReader(target)
+    html = await fetchViaReader(target, debug)
     recipe = html && extractRecipe(html)
   }
-  if (!recipe) return res.status(422).json({ error: 'Couldn’t read a recipe from that page. Copy the recipe text and use “Paste recipe text” instead.' })
+  if (!recipe) return res.status(422).json({ debug, error: 'Couldn’t read a recipe from that page. Copy the recipe text and use “Paste recipe text” instead.' })
   recipe.source_url = target.toString()
   return res.status(200).json(recipe)
 }
 
-async function fetchDirect(target) {
+async function fetchDirect(target, debug = []) {
   try {
     const r = await fetch(target, {
       headers: {
@@ -38,20 +39,23 @@ async function fetchDirect(target) {
       redirect: 'follow',
       signal: AbortSignal.timeout(9000),
     })
+    debug.push(`direct ${r.status}`)
     if (!r.ok) return null
     return (await r.text()).slice(0, 3_000_000)
-  } catch { return null }
+  } catch (e) { debug.push(`direct err ${e.message}`); return null }
 }
 
-async function fetchViaReader(target) {
+async function fetchViaReader(target, debug = []) {
   try {
     const r = await fetch(`https://r.jina.ai/${target.toString()}`, {
       headers: { 'X-Return-Format': 'html', 'X-No-Cache': 'true' },
       signal: AbortSignal.timeout(20000),
     })
+    const body = (await r.text()).slice(0, 3_000_000)
+    debug.push(`reader ${r.status} len=${body.length} ldjson=${(body.match(/ld\+json/g) || []).length} head=${body.slice(0, 120).replace(/\s+/g, ' ')}`)
     if (!r.ok) return null
-    return (await r.text()).slice(0, 3_000_000)
-  } catch { return null }
+    return body
+  } catch (e) { debug.push(`reader err ${e.message}`); return null }
 }
 
 
