@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase, configured } from './supabase'
 import { useHousehold } from './useHousehold'
 import { AddItemSheet, EditSheet, ScannerSheet, Toast } from './components'
+import { RecipesScreen, RecipeDetailSheet, RecipeFormSheet } from './recipeScreens'
 import { HomeScreen, InventoryScreen, ShoppingScreen, SettingsScreen, ItemActionsSheet } from './screens'
 
 // Remember an invite code from the link, even across the sign-in step.
@@ -146,6 +147,7 @@ const svg = (d) => (
 const TABS = [
   { id: 'home', label: 'Home', icon: svg(<><path d="M3 10.5 12 3l9 7.5" /><path d="M5 9.5V20h14V9.5" /></>) },
   { id: 'inventory', label: 'Inventory', icon: svg(<><rect x="4" y="3" width="16" height="18" rx="2" /><path d="M4 12h16M9 7.5h2M9 16.5h2" /></>) },
+  { id: 'recipes', label: 'Recipes', icon: svg(<><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z" /><path d="M5 17a3 3 0 0 1 3-3h11" /><path d="M9 8h6" /></>) },
   { id: 'list', label: 'List', icon: svg(<><path d="M9 6h11M9 12h11M9 18h11" /><path d="m3.5 6 1 1 2-2M3.5 12l1 1 2-2M3.5 18l1 1 2-2" /></>) },
   { id: 'settings', label: 'Family', icon: svg(<><circle cx="9" cy="8" r="3.2" /><path d="M3 20c.6-3.4 3-5 6-5s5.4 1.6 6 5" /><circle cx="17" cy="9" r="2.5" /><path d="M16 14.2c2.6.1 4.4 1.6 5 4.8" /></>) },
 ]
@@ -158,8 +160,8 @@ function Main({ session, household }) {
 
   const ctx = useMemo(() => ({
     householdId: household.id, userId: session.user.id,
-    items: hh.items, inventory: hh.inventory, shopping_list: hh.shopping_list, reload: hh.reload,
-  }), [household.id, session.user.id, hh.items, hh.inventory, hh.shopping_list, hh.reload])
+    items: hh.items, inventory: hh.inventory, shopping_list: hh.shopping_list, recipes: hh.recipes, reload: hh.reload,
+  }), [household.id, session.user.id, hh.items, hh.inventory, hh.shopping_list, hh.recipes, hh.reload])
 
   const showToast = useCallback((t) => setToast(typeof t === 'string' ? { text: t } : t), [])
   const clearToast = useCallback(() => setToast(null), [])
@@ -177,6 +179,7 @@ function Main({ session, household }) {
         {hh.loading ? <p className="muted center">Loading…</p> : <>
           {tab === 'home' && <HomeScreen {...common} onAdd={() => setSheet({ type: 'add' })} onScan={() => setSheet({ type: 'scan' })} />}
           {tab === 'inventory' && <InventoryScreen {...common} onAdd={(locationId) => setSheet({ type: 'add', preset: { locationId } })} />}
+          {tab === 'recipes' && <RecipesScreen ctx={ctx} onOpen={(r) => setSheet({ type: 'recipe', recipe: r })} onAdd={() => setSheet({ type: 'recipeForm' })} />}
           {tab === 'list' && <ShoppingScreen ctx={ctx} locations={hh.locations} members={hh.household_members} onToast={showToast} />}
           {tab === 'settings' && <SettingsScreen ctx={ctx} household={household} members={hh.household_members} session={session} />}
         </>}
@@ -197,6 +200,8 @@ function Main({ session, household }) {
 
       {sheet?.type === 'add' && <AddItemSheet ctx={ctx} locations={hh.locations} preset={sheet.preset} onClose={() => setSheet(null)} onAdded={showToast} />}
       {sheet?.type === 'scan' && <ScannerSheet ctx={ctx} onClose={() => setSheet(null)} onResult={onScanResult} />}
+      {sheet?.type === 'recipe' && <RecipeDetailSheet ctx={ctx} recipe={sheet.recipe} onClose={() => setSheet(null)} onEdit={(r) => setSheet({ type: 'recipeForm', recipe: r })} onToast={showToast} />}
+      {sheet?.type === 'recipeForm' && <RecipeFormSheet ctx={ctx} recipe={sheet.recipe} onClose={() => setSheet(null)} onSaved={(r) => { setSheet({ type: 'recipe', recipe: r }); showToast('Recipe saved') }} />}
       {sheet?.type === 'actions' && <ItemActionsSheet ctx={ctx} row={sheet.row} locations={hh.locations} onClose={() => setSheet(null)} onEdit={(row) => setSheet({ type: 'edit', row })} onToast={showToast} />}
       {sheet?.type === 'edit' && <EditSheet ctx={ctx} row={sheet.row} locations={hh.locations} onClose={() => setSheet(null)} onToast={showToast} />}
       <Toast toast={toast} onDone={clearToast} />

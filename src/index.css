@@ -182,3 +182,38 @@ main { padding: 0 16px; }
 /* ---------- Family ---------- */
 .invite .code { font-size: 32px; font-weight: 800; letter-spacing: 8px; text-align: center; padding: 14px; background: var(--card); border-radius: 14px; border: 1px dashed var(--line); }
 .invite .row { margin-top: 8px; }
+
+/* ---------- Recipes ---------- */
+.recipe-row { width: 100%; text-align: left; align-items: flex-start; padding-top: 12px; padding-bottom: 12px; }
+.recipe-row + .recipe-row::before { left: 82px; }
+.thumb { border-radius: 12px; object-fit: cover; flex: none; background: var(--fill); }
+.thumb-empty { display: grid; place-items: center; font-size: 26px; }
+.tag-row { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 4px; }
+.tag.soft { background: var(--fill); color: var(--ink-2); font-weight: 600; }
+.exp.ok { color: var(--accent); font-weight: 600; }
+.recipe-detail h2 { font-size: 24px; margin: 4px 0 6px; letter-spacing: -.02em; }
+.hero { width: 100%; max-height: 240px; object-fit: cover; border-radius: 16px; margin-bottom: 12px; background: var(--fill); }
+.meta-row { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; color: var(--muted); font-size: 14px; }
+.serv { display: flex; align-items: center; gap: 8px; text-transform: none; letter-spacing: 0; font-size: 14px; color: var(--ink-2); }
+.serv button { width: 30px; height: 30px; border-radius: 9px; background: var(--fill); font-size: 18px; color: var(--ink); }
+.ing-row { display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; font-size: 16px; }
+.ing-row + .ing-row { border-top: 1px solid var(--line); }
+.ing-mark { width: 22px; height: 22px; flex: none; border-radius: 50%; display: grid; place-items: center; font-size: 13px; font-weight: 800; margin-top: 1px; }
+.ing-row.have .ing-mark { background: var(--accent-soft); color: var(--accent); }
+.ing-row.missing .ing-mark { border: 2px solid var(--warn); color: transparent; }
+.ing-row.staple .ing-mark { color: var(--muted); font-size: 20px; }
+.ing-row.staple .ing-text { color: var(--muted); }
+.ing-text { flex: 1; }
+.ing-flag { font-size: 12px; font-weight: 700; color: var(--warn); background: var(--warn-soft); border-radius: 6px; padding: 2px 7px; margin-top: 2px; }
+.ready { color: var(--accent); font-weight: 600; margin: 12px 4px 0; }
+.steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.steps li { display: flex; gap: 12px; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px; font-size: 16px; line-height: 1.45; }
+.step-n { width: 26px; height: 26px; flex: none; border-radius: 50%; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 14px; display: grid; place-items: center; }
+.notes { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px; margin: 0; white-space: pre-wrap; line-height: 1.45; }
+.source { display: inline-block; margin-top: 14px; color: var(--accent); font-weight: 600; text-decoration: none; }
+textarea.big-text { font: inherit; font-size: 16px; line-height: 1.45; color: var(--ink); background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; width: 100%; resize: vertical; }
+textarea.big-text:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+.three { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.three label { display: block; margin-bottom: 6px; }
+.or { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 13px; margin: 6px 0; }
+.or::before, .or::after { content: ''; flex: 1; border-top: 1px solid var(--line); }

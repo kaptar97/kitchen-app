@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from './supabase'
 
-const TABLES = ['locations', 'items', 'inventory', 'shopping_list', 'household_members']
+const TABLES = ['locations', 'items', 'inventory', 'shopping_list', 'household_members', 'recipes']
 
 // Loads everything for one household and keeps it live-synced.
 export function useHousehold(householdId) {
   const [data, setData] = useState({
-    locations: [], items: [], inventory: [], shopping_list: [], household_members: [],
+    locations: [], items: [], inventory: [], shopping_list: [], household_members: [], recipes: [],
   })
   const [loading, setLoading] = useState(true)
   const timers = useRef({})
