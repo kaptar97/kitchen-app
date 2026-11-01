@@ -3,13 +3,31 @@ import { addToInventory, lookupBarcode, updateItem, updateRow, removeRow } from 
 
 export const UNITS = ['ct', 'pack', 'box', 'can', 'bottle', 'bag', 'jar', 'lb', 'oz', 'gal', 'roll', 'dozen']
 
-export function Sheet({ title, onClose, children }) {
+export function Sheet({ title, onClose, children, full = false }) {
+  // Swipe right from the left edge (like iPhone back), or pull the top of the sheet down, to go back.
+  const touch = useRef(null)
+  const onTouchStart = (e) => {
+    const t = e.touches[0]
+    const sheetTop = e.currentTarget.getBoundingClientRect().top
+    touch.current = { x: t.clientX, y: t.clientY, edge: t.clientX < 28, top: t.clientY - sheetTop < 70 && e.currentTarget.scrollTop <= 0 }
+  }
+  const onTouchEnd = (e) => {
+    const s = touch.current; touch.current = null
+    if (!s) return
+    const t = e.changedTouches[0]
+    const dx = t.clientX - s.x, dy = t.clientY - s.y
+    if (s.edge && dx > 70 && Math.abs(dy) < 60) onClose()
+    else if (s.top && dy > 90 && Math.abs(dx) < 60) onClose()
+  }
   return (
     <div className="backdrop" onClick={onClose}>
-      <div className="sheet" onClick={(e) => e.stopPropagation()}>
+      <div className={`sheet ${full ? 'full' : ''}`} onClick={(e) => e.stopPropagation()} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
         <div className="sheet-head">
-          <h2>{title}</h2>
-          <button className="icon-btn" onClick={onClose} aria-label="Close">✕</button>
+          <button className="back-btn" onClick={onClose} aria-label="Back">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M15 5l-7 7 7 7" /></svg>
+            Back
+          </button>
+          {title && <h2 className="sheet-title">{title}</h2>}
         </div>
         {children}
       </div>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase, configured } from './supabase'
 import { useHousehold } from './useHousehold'
 import { AddItemSheet, EditSheet, ScannerSheet, Toast } from './components'
@@ -154,8 +154,42 @@ const TABS = [
 
 function Main({ session, household }) {
   const hh = useHousehold(household.id)
-  const [tab, setTab] = useState('home')
-  const [sheet, setSheet] = useState(null) // {type:'add'|'scan'|'edit', ...}
+  const [tab, setTabState] = useState('home')
+  const [sheet, setSheetState] = useState(null) // {type:'add'|'scan'|'edit', ...}
+
+  // Back-button / swipe-back support: every page and tab change goes into the browser history,
+  // so the phone's back gesture closes the current page instead of leaving the app.
+  const stackRef = useRef([])
+  const sheetRef = useRef(null)
+  const tabRef = useRef('home')
+  sheetRef.current = sheet
+  tabRef.current = tab
+  useEffect(() => {
+    window.history.replaceState({ tab: 'home', depth: 0 }, '')
+    const onPop = (e) => {
+      const depth = e.state?.depth || 0
+      let s = sheetRef.current
+      while (stackRef.current.length > depth) s = stackRef.current.pop()
+      setSheetState(depth === 0 ? null : s)
+      setTabState(e.state?.tab || 'home')
+    }
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [])
+  const openSheet = useCallback((next) => {
+    stackRef.current.push(sheetRef.current)
+    setSheetState(next)
+    window.history.pushState({ tab: tabRef.current, depth: stackRef.current.length }, '')
+  }, [])
+  const replaceSheet = useCallback((next) => setSheetState(next), [])
+  const closeSheet = useCallback(() => { if (stackRef.current.length) window.history.back(); else setSheetState(null) }, [])
+  const closeAll = useCallback(() => { const d = stackRef.current.length; if (d) window.history.go(-d); else setSheetState(null) }, [])
+  const setTab = useCallback((id) => {
+    if (id === tabRef.current) { window.scrollTo({ top: 0, behavior: 'smooth' }); return }
+    setTabState(id)
+    window.scrollTo(0, 0)
+    window.history.pushState({ tab: id, depth: 0 }, '')
+  }, [])
   const [toast, setToast] = useState(null)
 
   const ctx = useMemo(() => ({
@@ -165,10 +199,10 @@ function Main({ session, household }) {
 
   const showToast = useCallback((t) => setToast(typeof t === 'string' ? { text: t } : t), [])
   const clearToast = useCallback(() => setToast(null), [])
-  const onScanResult = useCallback((r) => setSheet({ type: 'add', preset: r }), [])
+  const onScanResult = useCallback((r) => replaceSheet({ type: 'add', preset: r }), [replaceSheet])
   const listCount = hh.shopping_list.filter((l) => !l.checked).length
 
-  const common = { ctx, locations: hh.locations, onToast: showToast, onOpen: (row) => setSheet({ type: 'actions', row }) }
+  const common = { ctx, locations: hh.locations, onToast: showToast, onOpen: (row) => openSheet({ type: 'actions', row }) }
 
   return (
     <div className="app">
@@ -177,16 +211,16 @@ function Main({ session, household }) {
       </header>
       <main>
         {hh.loading ? <p className="muted center">Loading…</p> : <>
-          {tab === 'home' && <HomeScreen {...common} onAdd={() => setSheet({ type: 'add' })} onScan={() => setSheet({ type: 'scan' })} />}
-          {tab === 'inventory' && <InventoryScreen {...common} onAdd={(locationId) => setSheet({ type: 'add', preset: { locationId } })} />}
-          {tab === 'recipes' && <RecipesScreen ctx={ctx} onToast={showToast} onOpen={(r) => setSheet({ type: 'recipe', recipe: r })} onAdd={() => setSheet({ type: 'recipeForm' })} />}
+          {tab === 'home' && <HomeScreen {...common} onAdd={() => openSheet({ type: 'add' })} onScan={() => openSheet({ type: 'scan' })} />}
+          {tab === 'inventory' && <InventoryScreen {...common} onAdd={(locationId) => openSheet({ type: 'add', preset: { locationId } })} />}
+          {tab === 'recipes' && <RecipesScreen ctx={ctx} onToast={showToast} onOpen={(r) => openSheet({ type: 'recipe', recipe: r })} onAdd={() => openSheet({ type: 'recipeForm' })} />}
           {tab === 'list' && <ShoppingScreen ctx={ctx} locations={hh.locations} members={hh.household_members} onToast={showToast} />}
           {tab === 'settings' && <SettingsScreen ctx={ctx} household={household} members={hh.household_members} session={session} />}
         </>}
       </main>
 
       {(tab === 'inventory' || tab === 'list') && (
-        <button className="fab" onClick={() => setSheet({ type: 'scan' })} aria-label="Scan">{svg(<><path d="M4 8V5h3M17 5h3v3M20 16v3h-3M7 19H4v-3" /><path d="M8 9v6M11 9v6M14 9v6M17 9v6" /></>)}</button>
+        <button className="fab" onClick={() => openSheet({ type: 'scan' })} aria-label="Scan">{svg(<><path d="M4 8V5h3M17 5h3v3M20 16v3h-3M7 19H4v-3" /><path d="M8 9v6M11 9v6M14 9v6M17 9v6" /></>)}</button>
       )}
 
       <nav className="tabbar">
@@ -198,12 +232,12 @@ function Main({ session, household }) {
         ))}
       </nav>
 
-      {sheet?.type === 'add' && <AddItemSheet ctx={ctx} locations={hh.locations} preset={sheet.preset} onClose={() => setSheet(null)} onAdded={showToast} />}
-      {sheet?.type === 'scan' && <ScannerSheet ctx={ctx} onClose={() => setSheet(null)} onResult={onScanResult} />}
-      {sheet?.type === 'recipe' && <RecipeDetailSheet ctx={ctx} recipe={sheet.recipe} onClose={() => setSheet(null)} onEdit={(r) => setSheet({ type: 'recipeForm', recipe: r })} onToast={showToast} />}
-      {sheet?.type === 'recipeForm' && <RecipeFormSheet ctx={ctx} recipe={sheet.recipe} onClose={() => setSheet(null)} onSaved={(r) => { setSheet({ type: 'recipe', recipe: r }); showToast('Recipe saved') }} />}
-      {sheet?.type === 'actions' && <ItemActionsSheet ctx={ctx} row={sheet.row} locations={hh.locations} onClose={() => setSheet(null)} onEdit={(row) => setSheet({ type: 'edit', row })} onToast={showToast} />}
-      {sheet?.type === 'edit' && <EditSheet ctx={ctx} row={sheet.row} locations={hh.locations} onClose={() => setSheet(null)} onToast={showToast} />}
+      {sheet?.type === 'add' && <AddItemSheet ctx={ctx} locations={hh.locations} preset={sheet.preset} onClose={closeSheet} onAdded={showToast} />}
+      {sheet?.type === 'scan' && <ScannerSheet ctx={ctx} onClose={closeSheet} onResult={onScanResult} />}
+      {sheet?.type === 'recipe' && <RecipeDetailSheet ctx={ctx} recipe={sheet.recipe} onClose={closeSheet} onEdit={(r) => openSheet({ type: 'recipeForm', recipe: r })} onToast={showToast} />}
+      {sheet?.type === 'recipeForm' && <RecipeFormSheet ctx={ctx} recipe={sheet.recipe} onClose={closeSheet} onSaved={(r) => { replaceSheet({ type: 'recipe', recipe: r }); showToast('Recipe saved') }} />}
+      {sheet?.type === 'actions' && <ItemActionsSheet ctx={ctx} row={sheet.row} locations={hh.locations} onClose={closeSheet} onEdit={(row) => openSheet({ type: 'edit', row })} onToast={showToast} />}
+      {sheet?.type === 'edit' && <EditSheet ctx={ctx} row={sheet.row} locations={hh.locations} onClose={closeAll} onToast={showToast} />}
       <Toast toast={toast} onDone={clearToast} />
     </div>
   )

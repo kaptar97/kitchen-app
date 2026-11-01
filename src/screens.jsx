@@ -58,7 +58,8 @@ export function InventoryRow({ ctx, row, showLocation, locations, onOpen, onToas
 }
 
 // Tap a row → big, clear actions.
-export function ItemActionsSheet({ ctx, row, locations, onClose, onEdit, onToast }) {
+export function ItemActionsSheet({ ctx, row: given, locations, onClose, onEdit, onToast }) {
+  const row = ctx.inventory.find((r) => r.id === given.id) || given
   const item = ctx.items.find((i) => i.id === row.item_id)
   const loc = locations.find((l) => l.id === row.location_id)
   if (!item) return null

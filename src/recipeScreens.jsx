@@ -216,7 +216,8 @@ function Group({ title, count, children }) {
   )
 }
 
-export function RecipeDetailSheet({ ctx, recipe, onClose, onEdit, onToast }) {
+export function RecipeDetailSheet({ ctx, recipe: given, onClose, onEdit, onToast }) {
+  const recipe = (!given.library && ctx.recipes.find((x) => x.id === given.id)) || given
   const base = Number(recipe.servings) || null
   const [servings, setServings] = useState(base || 1)
   const scale = base ? servings / base : 1
@@ -250,7 +251,7 @@ export function RecipeDetailSheet({ ctx, recipe, onClose, onEdit, onToast }) {
   }
 
   return (
-    <Sheet title="" onClose={onClose}>
+    <Sheet title="" onClose={onClose} full>
       <div className="recipe-detail">
         {recipe.image_url
           ? <img className="hero" src={recipe.image_url} alt="" referrerPolicy="no-referrer" onError={(e) => { e.currentTarget.style.display = 'none' }} />
@@ -400,7 +401,7 @@ export function RecipeFormSheet({ ctx, recipe, onClose, onSaved }) {
   const [customTag, setCustomTag] = useState('')
 
   return (
-    <Sheet title={editing ? 'Edit recipe' : 'New recipe'} onClose={onClose}>
+    <Sheet title={editing ? 'Edit recipe' : 'New recipe'} onClose={onClose} full>
       {step === 'choose' && (
         <div className="form">
           <form onSubmit={importLink} className="form">
