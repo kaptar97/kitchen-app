@@ -91,7 +91,7 @@ function Stepper({ value, onChange }) {
 }
 
 // Add an item: type a name (autocompletes from past items) or come from a barcode scan.
-export function AddItemSheet({ ctx, locations, preset = {}, onClose, onAdded }) {
+export function AddItemSheet({ ctx, locations, preset = {}, onClose, onAdded, onQuickAdd }) {
   const [name, setName] = useState(preset.name || '')
   const [qty, setQty] = useState(1)
   const [unit, setUnit] = useState(preset.item?.default_unit || 'ct')
@@ -130,6 +130,7 @@ export function AddItemSheet({ ctx, locations, preset = {}, onClose, onAdded }) 
   return (
     <Sheet title={preset.barcode ? 'Scanned item' : 'Add item'} onClose={onClose}>
       <form onSubmit={save} className="form">
+        {onQuickAdd && !preset.barcode && <button type="button" className="haul-link" onClick={onQuickAdd}>✨ Bought a bunch? Type it all at once</button>}
         <input ref={inputRef} className="big-input" placeholder="What is it? (e.g. Eggs)"
           value={name} onChange={(e) => setName(e.target.value)} autoComplete="off" />
         {preset.barcode && !preset.name && <p className="hint">Not found in the barcode database. Type a name once and it'll be remembered.</p>}

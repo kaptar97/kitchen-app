@@ -7,6 +7,8 @@ import {
 } from './recipes'
 import { LIBRARY } from './library'
 import { itemIcon } from './icons'
+import { askClaude, photoToBase64, toRecipeDraft } from './ai'
+import { Sparkle } from './aiScreens'
 
 const timeText = (r) => {
   const t = (r.prep_minutes || 0) + (r.cook_minutes || 0)
@@ -319,7 +321,7 @@ const cleanName = (n) => {
   return c.charAt(0).toUpperCase() + c.slice(1)
 }
 
-export function RecipeFormSheet({ ctx, recipe, onClose, onSaved }) {
+export function RecipeFormSheet({ ctx, locations, recipe, onClose, onSaved }) {
   const editing = Boolean(recipe?.id)
   const [step, setStep] = useState(editing ? 'form' : 'choose')
   const [url, setUrl] = useState('')
@@ -343,8 +345,8 @@ export function RecipeFormSheet({ ctx, recipe, onClose, onSaved }) {
   const fromImport = (r) => {
     setF({
       title: r.title || '', servings: r.servings ?? '', prep_minutes: r.prep_minutes ?? '', cook_minutes: r.cook_minutes ?? '',
-      tags: guessTags(r), ingredients: (r.ingredients || []).join('\n'), steps: (r.steps || []).join('\n'),
-      notes: '', source_url: r.source_url || '', image_url: r.image_url || '',
+      tags: r.tags?.length ? r.tags : guessTags(r), ingredients: (r.ingredients || []).join('\n'), steps: (r.steps || []).join('\n'),
+      notes: r.notes || '', source_url: r.source_url || '', image_url: r.image_url || '',
     })
     setStep('form')
   }
@@ -360,6 +362,18 @@ export function RecipeFormSheet({ ctx, recipe, onClose, onSaved }) {
       setErr('blocked')
       setStep('paste')
     }
+    setBusy(false)
+  }
+  const [photo, setPhoto] = useState(null)
+  const importWithClaude = async (opts) => {
+    setErr(''); setBusy(true)
+    try {
+      const image = opts.file ? await photoToBase64(opts.file) : undefined
+      const r = await askClaude({ ctx, locations, mode: 'recipe', text: opts.text, image })
+      const input = r.actions?.find((a) => a.name === 'create_recipe')?.input
+      if (!input) throw new Error('Claude couldn’t read a recipe there.')
+      fromImport({ ...toRecipeDraft(input), source_url: url.trim() || '' })
+    } catch (ex) { setErr(ex.message) }
     setBusy(false)
   }
   const importPaste = () => {
@@ -412,6 +426,7 @@ export function RecipeFormSheet({ ctx, recipe, onClose, onSaved }) {
             </div>
           </form>
           <div className="or"><span>or</span></div>
+          <button className="secondary big ai-btn" onClick={() => setStep('ai')}><Sparkle /> Photo of a recipe (Claude reads it)</button>
           <button className="secondary big" onClick={() => setStep('paste')}>Paste recipe text</button>
           <button className="secondary big" onClick={() => setStep('form')}>Type it in</button>
           {err && <p className="error">{err}</p>}
@@ -430,9 +445,22 @@ export function RecipeFormSheet({ ctx, recipe, onClose, onSaved }) {
             </div>
           ) : <p className="hint">Paste the recipe: name, ingredients and steps. Text copied from a website, a note, or a message all works. Extra junk around it gets ignored.</p>}
           <textarea className="big-text" rows={12} value={paste} onChange={(e) => setPaste(e.target.value)} placeholder={'Cheesy Beef Skillet\nServes 4\n\nIngredients\n1 lb ground beef\n1 cup shredded cheddar\n\nInstructions\n1. Brown the beef…'} />
-          <button className="primary big" disabled={!paste.trim()} onClick={importPaste}>Read recipe</button>
+          <button className="primary big" disabled={!paste.trim() || busy} onClick={importPaste}>Read recipe</button>
+          <button className="secondary big ai-btn" disabled={!paste.trim() || busy} onClick={() => importWithClaude({ text: paste })}>{busy ? 'Claude is reading…' : <><Sparkle /> Messy? Let Claude clean it up</>}</button>
           <button className="link" onClick={() => { setStep('choose'); setErr('') }}>Back</button>
           {err && err !== 'blocked' && <p className="error">{err}</p>}
+        </div>
+      )}
+      {step === 'ai' && (
+        <div className="form">
+          <p className="hint">Snap a cookbook page, a recipe card (even handwritten), or a screenshot. Claude turns it into a recipe you can check and save.</p>
+          <label className="photo-pick">
+            <input type="file" accept="image/*" onChange={(e) => setPhoto(e.target.files?.[0] || null)} />
+            {photo ? <img src={URL.createObjectURL(photo)} alt="" /> : <span>📷 Take or choose a photo</span>}
+          </label>
+          <button className="primary big" disabled={!photo || busy} onClick={() => importWithClaude({ file: photo })}>{busy ? 'Claude is reading…' : <><Sparkle /> Read this recipe</>}</button>
+          <button className="link" onClick={() => { setStep('choose'); setErr('') }}>Back</button>
+          {err && <p className="error">{err}</p>}
         </div>
       )}
       {step === 'form' && (

@@ -5,6 +5,7 @@ import {
 } from './actions'
 import { supabase } from './supabase'
 import { itemIcon } from './icons'
+import { Sparkle, ClaudeUsage } from './aiScreens'
 
 const fmt = (n) => (Number.isInteger(Number(n)) ? Number(n) : Number(n).toFixed(1))
 
@@ -102,7 +103,7 @@ function totals(ctx) {
   return t
 }
 
-export function HomeScreen({ ctx, locations, onAdd, onScan, onOpen, onToast }) {
+export function HomeScreen({ ctx, locations, onAdd, onScan, onOpen, onToast, onAsk, onQuickAdd }) {
   const [q, setQ] = useState('')
   const itemName = (r) => ctx.items.find((i) => i.id === r.item_id)?.name || ''
   const results = q.trim()
@@ -136,10 +137,16 @@ export function HomeScreen({ ctx, locations, onAdd, onScan, onOpen, onToast }) {
         )
       ) : (
         <>
+          <button className="ask-card" onClick={onAsk}>
+            <span className="ask-icon"><Sparkle size={22} /></span>
+            <span className="ask-text"><b>Ask Claude</b><span>“What can I make tonight?”</span></span>
+            <span className="ask-arrow">›</span>
+          </button>
           <div className="quick-actions">
             <button className="qa qa-add" onClick={onAdd}><span><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg></span>Add item</button>
             <button className="qa qa-scan" onClick={onScan}><span><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 8V5h3M17 5h3v3M20 16v3h-3M7 19H4v-3" /><path d="M8 9v6M11 9v6M14 9v6M17 9v6" /></svg></span>Scan barcode</button>
           </div>
+          <button className="haul-btn" onClick={onQuickAdd}><Sparkle size={16} /> Just went shopping? Add it all in one sentence</button>
           <div className="stats">
             <div><b>{ctx.inventory.length}</b><span>items</span></div>
             <div className={expiring.length ? 'warn' : ''}><b>{expiring.length}</b><span>expiring</span></div>
@@ -329,6 +336,7 @@ export function SettingsScreen({ ctx, household, members, session }) {
           }}>Save</button>
         </div>
       </section>
+      <ClaudeUsage householdId={household.id} />
       <ChangeEmail session={session} />
       <ChangePassword />
       <section>
