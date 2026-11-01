@@ -202,13 +202,17 @@ export function RecipeFormSheet({ ctx, recipe, onClose, onSaved }) {
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || 'Import failed')
       fromImport(json)
-    } catch (ex) { setErr(ex.message) }
+    } catch {
+      setErr('blocked')
+      setStep('paste')
+    }
     setBusy(false)
   }
   const importPaste = () => {
+    setErr('')
     const r = parsePastedRecipe(paste)
-    if (!r.ingredients.length && !r.steps.length) { setErr('Couldn’t find ingredients. Make sure there’s an “Ingredients” line above them.'); return }
-    fromImport(r)
+    if (!r.ingredients.length && !r.steps.length) { setErr('Couldn’t find ingredients. Make sure the word “Ingredients” is on its own line above them.'); return }
+    fromImport({ ...r, source_url: url.trim() || '' })
   }
 
   const save = async () => {
@@ -261,11 +265,20 @@ export function RecipeFormSheet({ ctx, recipe, onClose, onSaved }) {
       )}
       {step === 'paste' && (
         <div className="form">
-          <p className="hint">Paste the whole recipe: name, ingredients and steps. Works with text copied from websites, notes or messages.</p>
+          {err === 'blocked' ? (
+            <div className="notice">
+              <b>That site doesn’t let apps read it.</b> Here’s the quick way:
+              <ol>
+                <li>Open the recipe in your browser and tap <b>Jump to Recipe</b>.</li>
+                <li>Press and hold on the recipe name, then drag to select down through the last step. (Or select all.)</li>
+                <li>Tap <b>Copy</b>, come back, and paste below.</li>
+              </ol>
+            </div>
+          ) : <p className="hint">Paste the recipe: name, ingredients and steps. Text copied from a website, a note, or a message all works. Extra junk around it gets ignored.</p>}
           <textarea className="big-text" rows={12} value={paste} onChange={(e) => setPaste(e.target.value)} placeholder={'Cheesy Beef Skillet\nServes 4\n\nIngredients\n1 lb ground beef\n1 cup shredded cheddar\n\nInstructions\n1. Brown the beef…'} />
           <button className="primary big" disabled={!paste.trim()} onClick={importPaste}>Read recipe</button>
           <button className="link" onClick={() => { setStep('choose'); setErr('') }}>Back</button>
-          {err && <p className="error">{err}</p>}
+          {err && err !== 'blocked' && <p className="error">{err}</p>}
         </div>
       )}
       {step === 'form' && (

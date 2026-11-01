@@ -23,7 +23,8 @@ export default async function handler(req, res) {
     html = await fetchViaReader(target, debug)
     recipe = html && extractRecipe(html)
   }
-  if (!recipe) return res.status(422).json({ debug, error: 'Couldn’t read a recipe from that page. Copy the recipe text and use “Paste recipe text” instead.' })
+  if (!recipe) console.log('import failed', target.hostname, debug.join(' | ').slice(0, 500))
+  if (!recipe) return res.status(422).json({ error: 'Couldn’t read a recipe from that page. Copy the recipe text and use “Paste recipe text” instead.' })
   recipe.source_url = target.toString()
   return res.status(200).json(recipe)
 }
@@ -52,7 +53,7 @@ async function fetchViaReader(target, debug = []) {
       signal: AbortSignal.timeout(20000),
     })
     const body = (await r.text()).slice(0, 3_000_000)
-    debug.push(`reader ${r.status} len=${body.length} ldjson=${(body.match(/ld\+json/g) || []).length} ld=${(body.match(/<script[^>]*ld\+json[^>]*>([\s\S]{0,300})/) || [])[1] || ''} head=${body.slice(0, 120).replace(/\s+/g, ' ')}`)
+    debug.push(`reader ${r.status} len=${body.length} ldjson=${(body.match(/ld\+json/g) || []).length} head=${body.slice(0, 120).replace(/\s+/g, ' ')}`)
     if (!r.ok) return null
     return body
   } catch (e) { debug.push(`reader err ${e.message}`); return null }

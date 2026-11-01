@@ -49,35 +49,49 @@ export function parseIngredient(line) {
 }
 
 const SECTION = {
-  ingredients: /^(ingredients?|you(’|')?ll need|what you need|shopping list)\s*:?\s*$/i,
-  steps: /^(instructions?|directions?|method|steps?|preparation|how to make( it)?)\s*:?\s*$/i,
-  skip: /^(notes?|nutrition.*|tips?|equipment)\s*:?\s*$/i,
+  ingredients: /^(ingredients?|you(’|')?ll need|what you(’|')?ll need|what you need|shopping list)\b[^a-z]*$/i,
+  steps: /^(instructions?|directions?|method|steps?|preparation|how to make( it)?|procedure)\b[^a-z]*$/i,
+  skip: /^(notes?|recipe notes|nutrition( facts| information)?|tips?|equipment|video|did you make this.*|rate this recipe.*|reviews?|comments?|related.*|more recipes.*)\b.*$/i,
 }
+// Junk lines that recipe cards add when copied.
+const JUNK = /^(\d+x\s*)+$|^(us customary|metric|cups?|imperial)(\s*(\||·)?\s*(us customary|metric|cups?|imperial))*$|^(print|pin|save|jump to recipe|rate|share|email|scale|course|cuisine|keyword|author|calories|servings?|prep time|cook time|total time|additional time|resting time|yield)\b.{0,40}$|^\d+\s*(mins?|minutes|hours?|hrs?)$|^(advertisement|ad)$/i
 
-// Turn a pasted blob of recipe text into { title, ingredients[], steps[], servings }.
 export function parsePastedRecipe(text) {
-  const lines = String(text).split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
+  const lines = String(text).split(/\r?\n/)
+    .map((l) => l.replace(/^#+\s*/, '').replace(/^[▢☐□✓✔]\s*/, '').replace(/\*\*/g, '').trim())
+    .filter(Boolean)
   let title = ''
   let servings = null
+  let prep = null
+  let cook = null
   const ingredients = []
   const steps = []
   let mode = null
-  for (const line of lines) {
-    if (SECTION.ingredients.test(line)) { mode = 'ing'; continue }
-    if (SECTION.steps.test(line)) { mode = 'steps'; continue }
-    if (SECTION.skip.test(line)) { mode = 'skip'; continue }
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
     const sv = line.match(/^(serves|servings|yield|makes)\s*:?\s*(\d+)/i)
     if (sv) { servings = +sv[2]; continue }
+    const tm = line.match(/^(prep|cook)\s*time\s*:?\s*(\d+)\s*(hours?|hrs?|mins?|minutes)?/i)
+    if (tm) { const m = +tm[2] * (/^h/i.test(tm[3] || '') ? 60 : 1); if (/prep/i.test(tm[1])) prep = m; else cook = m; continue }
+    if (SECTION.ingredients.test(line)) { mode = 'ing'; continue }
+    if (SECTION.steps.test(line)) { mode = 'steps'; continue }
+    if (mode && SECTION.skip.test(line)) { mode = 'skip'; continue }
+    if (JUNK.test(line)) continue
     if (!mode) {
-      if (!title && line.length < 90) { title = line; continue }
-      // Before any header: guess. Short lines starting with a number/fraction look like ingredients.
-      if (/^([\d½⅓⅔¼¾⅛]|[-•*▢])/.test(line) && line.length < 90) { ingredients.push(line); continue }
+      const junkTitle = /skip to|»|›|\bvotes?\b|\bfrom \d|\breviews?\b|^\d+(\.\d+)?$|\bmenu\b|\bsearch\b|subscribe|log ?in|sign ?up|newsletter|^home\b|cookie|privacy/i
+      if (!title && line.length > 3 && line.length < 90 && !/^[\d½⅓⅔¼¾⅛]/.test(line) && !junkTitle.test(line)) title = line
       continue
     }
-    if (mode === 'ing') ingredients.push(line.replace(/^[-•*▢☐□]\s*/, ''))
-    else if (mode === 'steps') steps.push(line.replace(/^(step\s*)?\d+[.):]\s*/i, ''))
+    if (mode === 'ing') {
+      if (/^for the\b|:$/i.test(line) && !/^[\d½⅓⅔¼¾⅛]/.test(line)) continue // sub-headers like "For the sauce:"
+      if (line.length > 140) continue
+      ingredients.push(line.replace(/^[-•*]\s*/, ''))
+    } else if (mode === 'steps') {
+      if (/^step\s*\d+$/i.test(line) || /^\d+$/.test(line)) continue
+      steps.push(line.replace(/^(step\s*)?\d+[.):]\s*/i, '').replace(/^[-•*]\s*/, ''))
+    }
   }
-  return { title, servings, ingredients, steps }
+  return { title, servings, prep_minutes: prep, cook_minutes: cook, ingredients, steps }
 }
 
 // ---------- Matching ingredients to the inventory ----------
