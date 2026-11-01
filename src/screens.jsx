@@ -250,7 +250,7 @@ export function SettingsScreen({ ctx, household, members, session }) {
         )}
       </section>
       <section>
-        <h3>Your name</h3>
+        <h3>Your name (what the family sees)</h3>
         <div className="row">
           <input value={myName} onChange={(e) => setMyName(e.target.value)} />
           <button className="secondary" onClick={async () => {
@@ -260,6 +260,7 @@ export function SettingsScreen({ ctx, household, members, session }) {
           }}>Save</button>
         </div>
       </section>
+      <ChangeEmail session={session} />
       <ChangePassword />
       <section>
         <p className="muted small">Signed in as {session.user.email}</p>
@@ -284,6 +285,31 @@ function ChangePassword() {
       <form className="row" onSubmit={save}>
         <input type="password" autoComplete="new-password" placeholder="New password (6+ characters)"
           value={pw} onChange={(e) => setPw(e.target.value)} minLength={6} required />
+        <button className="secondary">Save</button>
+      </form>
+      {msg && <p className="hint">{msg}</p>}
+    </section>
+  )
+}
+
+function ChangeEmail({ session }) {
+  const [email, setEmail] = useState(session.user.email || '')
+  const [msg, setMsg] = useState('')
+  const save = async (e) => {
+    e.preventDefault(); setMsg('')
+    const next = email.trim().toLowerCase()
+    if (next === session.user.email) { setMsg('That’s already your email.'); return }
+    const { data, error } = await supabase.auth.updateUser({ email: next })
+    if (error) setMsg(error.message)
+    else if (data.user?.email === next) setMsg(`Email changed to ${next}. Use it to sign in from now on.`)
+    else setMsg('Check both inboxes for a confirmation link to finish the change.')
+  }
+  return (
+    <section>
+      <h3>Sign-in email</h3>
+      <form className="row" onSubmit={save}>
+        <input type="email" inputMode="email" autoComplete="email" value={email}
+          onChange={(e) => setEmail(e.target.value)} required />
         <button className="secondary">Save</button>
       </form>
       {msg && <p className="hint">{msg}</p>}
