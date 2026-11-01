@@ -260,10 +260,33 @@ export function SettingsScreen({ ctx, household, members, session }) {
           }}>Save</button>
         </div>
       </section>
+      <ChangePassword />
       <section>
         <p className="muted small">Signed in as {session.user.email}</p>
         <button className="danger" onClick={() => supabase.auth.signOut()}>Sign out</button>
       </section>
     </div>
+  )
+}
+
+function ChangePassword() {
+  const [pw, setPw] = useState('')
+  const [msg, setMsg] = useState('')
+  const save = async (e) => {
+    e.preventDefault(); setMsg('')
+    const { error } = await supabase.auth.updateUser({ password: pw })
+    if (error) setMsg(error.message)
+    else { setMsg('Password updated. Use it to sign in on your other devices.'); setPw('') }
+  }
+  return (
+    <section>
+      <h3>Change password</h3>
+      <form className="row" onSubmit={save}>
+        <input type="password" autoComplete="new-password" placeholder="New password (6+ characters)"
+          value={pw} onChange={(e) => setPw(e.target.value)} minLength={6} required />
+        <button className="secondary">Save</button>
+      </form>
+      {msg && <p className="hint">{msg}</p>}
+    </section>
   )
 }
