@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Sheet, UNITS } from './components'
 import { supabase } from './supabase'
 import {
-  askClaude, toInventoryRows, applyInventoryRows, applyShopping, applyRemovals, toRecipeDraft, saveRecipeDraft, describeItems,
+  askClaude, photoToBase64, toInventoryRows, applyInventoryRows, applyShopping, applyRemovals, toRecipeDraft, saveRecipeDraft, describeItems,
 } from './ai'
 
 export const Sparkle = ({ size = 18 }) => (
@@ -18,6 +18,7 @@ const SUGGESTIONS = [
   'Plan 5 dinners and add what I need to the list',
   'High-protein lunch ideas with what we have',
   'Write me a recipe with chicken and rice',
+  '📷 Send a receipt photo and I’ll add what you bought',
 ]
 
 // Conversation survives closing and reopening the chat (until the app is closed).
@@ -40,19 +41,25 @@ export function AskClaudeSheet({ ctx, locations, onClose, onToast, onOpenRecipe 
   const endRef = useRef(null)
   useEffect(() => { savedChat = msgs; endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }) }, [msgs, busy])
 
+  const [photo, setPhoto] = useState(null) // { file, url }
+  const fileRef = useRef(null)
   const send = async (q) => {
-    const question = (q ?? text).trim()
+    const question = (q ?? text).trim() || (photo ? 'Here’s a photo. If it’s a receipt, add what I bought.' : '')
     if (!question || busy) return
     setText('')
-    const next = [...msgs, { role: 'user', content: question }]
+    const sentPhoto = photo
+    setPhoto(null)
+    const next = [...msgs, { role: 'user', content: question, photoUrl: sentPhoto?.url }]
     setMsgs(next)
     setBusy(true)
     try {
-      const history = next.map((m) => ({
+      const history = next.map((m, i) => ({
         role: m.role,
-        content: m.role === 'assistant' ? [m.content, summarize(m.actions)].filter(Boolean).join('\n') || '(ok)' : m.content,
+        content: m.role === 'assistant' ? [m.content, summarize(m.actions)].filter(Boolean).join('\n') || '(ok)'
+          : (m.photoUrl && i < next.length - 1 ? `${m.content}\n(sent a photo earlier)` : m.content),
       }))
-      const r = await askClaude({ ctx, locations, mode: 'chat', messages: history })
+      const image = sentPhoto ? await photoToBase64(sentPhoto.file) : undefined
+      const r = await askClaude({ ctx, locations, mode: 'chat', messages: history, image })
       setMsgs([...next, { role: 'assistant', content: r.reply, actions: (r.actions || []).map((a) => ({ ...a, status: 'new' })) }])
     } catch (e) {
       setMsgs([...next, { role: 'assistant', content: e.message, error: true }])
@@ -94,12 +101,13 @@ export function AskClaudeSheet({ ctx, locations, onClose, onToast, onOpenRecipe 
           <div className="chat-intro">
             <p>I can see what’s in your kitchen, your recipes and your shopping list. Ask me anything food-related. I can also update your list and inventory (you’ll confirm first).</p>
             <div className="suggestions">
-              {SUGGESTIONS.map((s) => <button key={s} onClick={() => send(s)}>{s}</button>)}
+              {SUGGESTIONS.map((s) => <button key={s} onClick={() => (s.startsWith('📷') ? fileRef.current?.click() : send(s))}>{s}</button>)}
             </div>
           </div>
         )}
         {msgs.map((m, mi) => (
           <div key={mi} className={`bubble-wrap ${m.role}`}>
+            {m.photoUrl && <img className="bubble-photo" src={m.photoUrl} alt="" />}
             {m.content && <div className={`bubble ${m.role} ${m.error ? 'error' : ''}`}>{m.content}</div>}
             {(m.actions || []).map((a, ai) => (
               <ActionCard key={ai} a={a} locations={locations} onRun={() => run(mi, ai)} onOpenRecipe={onOpenRecipe} />
@@ -110,8 +118,18 @@ export function AskClaudeSheet({ ctx, locations, onClose, onToast, onOpenRecipe 
         <div ref={endRef} />
       </div>
       <form className="chat-input" onSubmit={(e) => { e.preventDefault(); send() }}>
-        <input placeholder="Ask about dinner, recipes, groceries…" value={text} onChange={(e) => setText(e.target.value)} enterKeyHint="send" />
-        <button className="primary" disabled={busy || !text.trim()} aria-label="Send">↑</button>
+        {photo && (
+          <div className="attach-preview">
+            <img src={photo.url} alt="" />
+            <button type="button" onClick={() => setPhoto(null)} aria-label="Remove photo">✕</button>
+          </div>
+        )}
+        <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => {
+          const f = e.target.files?.[0]; if (f) setPhoto({ file: f, url: URL.createObjectURL(f) }); e.target.value = ''
+        }} />
+        <button type="button" className="icon-btn attach" onClick={() => fileRef.current?.click()} aria-label="Add a photo">📷</button>
+        <input placeholder={photo ? 'Add a note (optional)…' : 'Ask about dinner, recipes, groceries…'} value={text} onChange={(e) => setText(e.target.value)} enterKeyHint="send" />
+        <button className="primary" disabled={busy || (!text.trim() && !photo)} aria-label="Send">↑</button>
       </form>
       {msgs.length > 0 && <button className="link small-link" onClick={() => { setMsgs([]); savedChat = [] }}>Start a new chat</button>}
     </Sheet>
@@ -170,13 +188,15 @@ export function QuickAddSheet({ ctx, locations, onClose, onToast }) {
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
 
-  const sort = async () => {
+  const receiptRef = useRef(null)
+  const sort = async (file) => {
     setBusy(true); setErr('')
     try {
-      const r = await askClaude({ ctx, locations, mode: 'quickadd', text })
+      const image = file ? await photoToBase64(file, 2000) : undefined
+      const r = await askClaude({ ctx, locations, mode: 'quickadd', text: file ? '' : text, image })
       const items = r.actions?.find((a) => a.name === 'add_to_inventory')?.input?.items
       const next = toInventoryRows(items, locations)
-      if (!next.length) setErr('Claude didn’t find any items. Try listing them like “2 gallons milk, dozen eggs”.')
+      if (!next.length) setErr(file ? 'Couldn’t read items from that photo. Try a closer, flatter, well-lit shot.' : 'Claude didn’t find any items. Try listing them like “2 gallons milk, dozen eggs”.')
       else setRows(next)
     } catch (e) { setErr(e.message) }
     setBusy(false)
@@ -195,11 +215,14 @@ export function QuickAddSheet({ ctx, locations, onClose, onToast }) {
     <Sheet title={<span className="ai-title"><Sparkle /> Add a bunch at once</span>} onClose={onClose}>
       {!rows ? (
         <div className="form">
+          <input ref={receiptRef} type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) sort(f) }} />
+          <button className="secondary big ai-btn" disabled={busy} onClick={() => receiptRef.current?.click()}>{busy ? 'Reading…' : '📷 Snap a receipt'}</button>
+          <div className="or"><span>or type it</span></div>
           <p className="hint">Type or say what you bought. Claude sorts it into items, picks where each goes, and guesses expiration dates.</p>
           <textarea className="big-text" rows={5} autoFocus value={text} onChange={(e) => setText(e.target.value)}
             placeholder="2 gallons milk, dozen eggs, 3 lb chicken thighs, bananas, paper towels, 2 boxes pasta" />
           <p className="hint">Tip: tap the 🎤 on your keyboard to talk instead of typing.</p>
-          <button className="primary big" disabled={busy || !text.trim()} onClick={sort}>{busy ? 'Sorting…' : <><Sparkle /> Sort it out</>}</button>
+          <button className="primary big" disabled={busy || !text.trim()} onClick={() => sort()}>{busy ? 'Sorting…' : <><Sparkle /> Sort it out</>}</button>
           {err && <p className="error">{err}</p>}
         </div>
       ) : (

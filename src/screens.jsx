@@ -146,7 +146,7 @@ export function HomeScreen({ ctx, locations, onAdd, onScan, onOpen, onToast, onA
             <button className="qa qa-add" onClick={onAdd}><span><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg></span>Add item</button>
             <button className="qa qa-scan" onClick={onScan}><span><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 8V5h3M17 5h3v3M20 16v3h-3M7 19H4v-3" /><path d="M8 9v6M11 9v6M14 9v6M17 9v6" /></svg></span>Scan barcode</button>
           </div>
-          <button className="haul-btn" onClick={onQuickAdd}><Sparkle size={16} /> Just went shopping? Add it all in one sentence</button>
+          <button className="haul-btn" onClick={onQuickAdd}><Sparkle size={16} /> Just went shopping? Snap the receipt or type it all</button>
           <div className="stats">
             <div><b>{ctx.inventory.length}</b><span>items</span></div>
             <div className={expiring.length ? 'warn' : ''}><b>{expiring.length}</b><span>expiring</span></div>

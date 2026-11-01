@@ -294,3 +294,10 @@ textarea.big-text:focus { outline: 2px solid var(--accent); outline-offset: -1px
 .usage div + div { border-left: 1px solid var(--line); }
 .usage b { font-size: 19px; }
 .usage span { font-size: 12px; color: var(--muted); }
+.bubble-photo { max-width: 60%; max-height: 220px; border-radius: 14px; object-fit: cover; align-self: flex-end; }
+.chat-input { flex-wrap: wrap; align-items: center; }
+.chat-input input:not([hidden]) { flex: 1; min-width: 0; }
+.chat-input .attach { font-size: 22px; width: 42px; height: 42px; }
+.attach-preview { width: 100%; display: flex; align-items: center; gap: 8px; }
+.attach-preview img { height: 56px; border-radius: 10px; }
+.attach-preview button { width: 28px; height: 28px; border-radius: 50%; background: var(--fill); color: var(--muted); }

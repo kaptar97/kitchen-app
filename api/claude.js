@@ -92,7 +92,8 @@ The user is listing groceries they just bought or have. Call add_to_inventory wi
 - Convert counts sensibly: "dozen eggs" → Eggs, 12 ct (or 1 dozen); "2 gallons milk" → Milk, 2 gal.
 - Pick the best location from the household's locations (meat/fish → Freezer unless they say fresh for this week; dairy, produce → Fridge; dry goods → Pantry; paper and cleaning → Garage/Cleaning/Bathroom).
 - Add expires_in_days for perishables using typical fridge life (milk 7, eggs 21, fresh chicken 2, ground beef 2, berries 5, lettuce 7, bread 7, frozen meat 90). Omit for shelf-stable and non-food.
-Do not add anything the user didn't mention.`
+Do not add anything the user didn't mention.
+If you're given a receipt photo: read every purchased line. Decode store abbreviations into plain names ("GV WHL MLK GAL" → Milk, 1 gal; "BNLS SKNLS CHKN BRST" → Chicken breasts). Use the line's count or weight for quantity; combine duplicate lines. Skip tax, totals, bag fees, deposits, coupons, discounts and anything unreadable. Include household items (paper towels, soap) too.`
   }
   if (mode === 'recipe') {
     return `${base}
@@ -107,6 +108,7 @@ How to help:
 - They may like recipes from their saved list or the app's built-in library (listed in the context) — mention those by exact title when they fit.
 - Use the tools when the user asks for a change or it clearly helps (e.g. "add what I need" → add_to_shopping_list; "we finished the milk" → remove_from_inventory; "write me a recipe" → create_recipe). The app shows each proposed change for the family to confirm, so phrase it as a suggestion ("I can add these to your list") — never claim it's already done.
 - Don't add salt, pepper, water or cooking oil to shopping lists unless asked.
+- If the user sends a photo: a receipt → offer add_to_inventory with the purchased items (decode store abbreviations, skip tax/bags/coupons); a fridge or pantry photo → say what you see and suggest meals; a recipe → offer create_recipe.
 - For anything medical, allergies or diets for health conditions, give general info and suggest checking with a professional.`
 }
 
@@ -149,16 +151,26 @@ export default async function handler(req, res) {
   let msgs
   let tools
   let toolChoice
+  const imageBlock = (() => {
+    if (!image?.data || !/^image\/(jpeg|png|webp|gif)$/.test(image.media_type || '')) return null
+    if (String(image.data).length > 4_000_000) return 'too-big'
+    return { type: 'image', source: { type: 'base64', media_type: image.media_type, data: image.data } }
+  })()
+  if (imageBlock === 'too-big') return res.status(413).json({ error: 'That photo is too big. Try a smaller one.' })
+
   if (mode === 'quickadd') {
-    msgs = [{ role: 'user', content: String(text || '').slice(0, 4000) }]
+    const t = String(text || '').slice(0, 4000)
+    msgs = [{
+      role: 'user',
+      content: imageBlock
+        ? [imageBlock, { type: 'text', text: `This is a photo of a grocery receipt (or groceries).${t ? ` Note from the user: ${t}` : ''}` }]
+        : t,
+    }]
     tools = [TOOLS.add_to_inventory]
     toolChoice = { type: 'tool', name: 'add_to_inventory' }
   } else if (mode === 'recipe') {
     const content = []
-    if (image?.data && /^image\/(jpeg|png|webp|gif)$/.test(image.media_type || '')) {
-      if (String(image.data).length > 4_000_000) return res.status(413).json({ error: 'That photo is too big. Try a smaller one.' })
-      content.push({ type: 'image', source: { type: 'base64', media_type: image.media_type, data: image.data } })
-    }
+    if (imageBlock) content.push(imageBlock)
     content.push({ type: 'text', text: text ? `Recipe text:\n${String(text).slice(0, 20000)}` : 'Read the recipe in this photo.' })
     msgs = [{ role: 'user', content }]
     tools = [TOOLS.create_recipe]
@@ -170,6 +182,10 @@ export default async function handler(req, res) {
       .map((m) => ({ role: m.role, content: m.content.slice(0, 4000) }))
     while (msgs.length && msgs[0].role !== 'user') msgs.shift()
     if (!msgs.length) return res.status(400).json({ error: 'Say something first.' })
+    if (imageBlock) {
+      const last = msgs[msgs.length - 1]
+      if (last.role === 'user') last.content = [imageBlock, { type: 'text', text: last.content }]
+    }
     tools = Object.values(TOOLS)
     toolChoice = { type: 'auto' }
   }
