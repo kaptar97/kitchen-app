@@ -41,12 +41,16 @@ function SignIn() {
     const { data, error } = mode === 'signup'
       ? await supabase.auth.signUp(creds)
       : await supabase.auth.signInWithPassword(creds)
-    setBusy(false)
-    if (error) {
-      setErr(/invalid login/i.test(error.message) ? 'Wrong email or password.' : error.message)
+    if (error && mode === 'signup' && /already registered|already exists/i.test(error.message)) {
+      // They already have an account (e.g. made it in the browser) — just sign them in.
+      const { error: e2 } = await supabase.auth.signInWithPassword(creds)
+      if (e2) { setMode('signin'); setErr('You already have an account. Enter your password to sign in.') }
+    } else if (error) {
+      setErr(/invalid login/i.test(error.message) ? 'Wrong email or password. Passwords are case-sensitive.' : error.message)
     } else if (mode === 'signup' && !data.session) {
       setErr('Account created, but email confirmation is on. Ask Brett to turn it off in Supabase.')
     }
+    setBusy(false)
   }
 
   return (
