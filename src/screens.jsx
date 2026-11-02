@@ -5,6 +5,7 @@ import {
 } from './actions'
 import { supabase } from './supabase'
 import { itemIcon } from './icons'
+import { locColor } from './theme'
 import { Sparkle, ClaudeUsage } from './aiScreens'
 import { BudgetCard, PriceHistory, BudgetSetting } from './money'
 
@@ -38,7 +39,7 @@ export function InventoryRow({ ctx, row, showLocation, locations, onOpen, onToas
   }
 
   return (
-    <div className="row-item">
+    <div className="row-item" style={{ '--loc': locColor(loc?.name) }}>
       <button className="row-tap" onClick={() => onOpen(row)}>
         <span className="row-icon">{itemIcon(item.name, loc?.icon)}</span>
         <span className="row-body">
@@ -52,7 +53,7 @@ export function InventoryRow({ ctx, row, showLocation, locations, onOpen, onToas
       </button>
       <div className="qty">
         <button onClick={minus} aria-label="One less">−</button>
-        <span className="qty-n">{fmt(row.quantity)}<small>{row.unit !== 'ct' ? ` ${row.unit}` : ''}</small></span>
+        <span className="qty-n" key={row.quantity}>{fmt(row.quantity)}<small>{row.unit !== 'ct' ? ` ${row.unit}` : ''}</small></span>
         <button onClick={() => changeQty(ctx, row, 1)} aria-label="One more">+</button>
       </div>
     </div>
@@ -85,9 +86,9 @@ export function ItemActionsSheet({ ctx, row: given, locations, onClose, onEdit, 
   )
 }
 
-function Group({ title, count, children, right }) {
+function Group({ title, count, children, right, color }) {
   return (
-    <section className="group">
+    <section className="group" style={color ? { '--loc': color } : undefined}>
       {(title || right) && (
         <div className="group-head">
           <span>{title}{count != null && <span className="group-count">{count}</span>}</span>
@@ -198,7 +199,10 @@ export function InventoryScreen({ ctx, locations, onOpen, onToast, onAdd }) {
       <div className="seg">
         <button className={locId === 'all' ? 'on' : ''} onClick={() => setLocId('all')}>All</button>
         {locations.map((l) => (
-          <button key={l.id} className={locId === l.id ? 'on' : ''} onClick={() => setLocId(l.id)}>{l.name}</button>
+          <button key={l.id} className={`loc-chip ${locId === l.id ? 'on' : ''}`} style={{ '--loc': locColor(l.name) }} onClick={() => setLocId(l.id)}>
+            <span className="loc-dot" />{l.name}
+            {ctx.inventory.some((r) => r.location_id === l.id) && <span className="seg-count">{ctx.inventory.filter((r) => r.location_id === l.id).length}</span>}
+          </button>
         ))}
       </div>
       {shown.length === 0 || shown.every((g) => !g.rows.length) ? (
@@ -208,7 +212,7 @@ export function InventoryScreen({ ctx, locations, onOpen, onToast, onAdd }) {
           <button className="primary" onClick={() => onAdd(locId === 'all' ? undefined : locId)}>Add something</button>
         </div>
       ) : shown.map((g) => (
-        <Group key={g.loc.id || 'none'} title={`${g.loc.icon}  ${g.loc.name}`} count={g.rows.length}>
+        <Group key={g.loc.id || 'none'} title={<span className="loc-title"><span className="loc-dot" />{g.loc.name}</span>} count={g.rows.length} color={locColor(g.loc.name)}>
           {g.rows.map((r) => <InventoryRow key={r.id} row={r} {...rowProps} />)}
         </Group>
       ))}

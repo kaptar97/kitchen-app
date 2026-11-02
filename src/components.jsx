@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { addToInventory, lookupBarcode, updateItem, updateRow, removeRow } from './actions'
 import { localDate } from './dates'
+import { locColor } from './theme'
 
 export const UNITS = ['ct', 'pack', 'box', 'can', 'bottle', 'bag', 'jar', 'lb', 'oz', 'gal', 'roll', 'dozen']
 
@@ -72,9 +73,9 @@ export function LocationChips({ locations, value, onChange }) {
   return (
     <div className="chips">
       {locations.map((l) => (
-        <button key={l.id} type="button"
-          className={`chip ${value === l.id ? 'on' : ''}`} onClick={() => onChange(l.id)}>
-          {l.icon} {l.name}
+        <button key={l.id} type="button" style={{ '--loc': locColor(l.name) }}
+          className={`chip loc-chip ${value === l.id ? 'on' : ''}`} onClick={() => onChange(l.id)}>
+          <span className="loc-dot" />{l.name}
         </button>
       ))}
     </div>

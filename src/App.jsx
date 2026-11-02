@@ -144,6 +144,11 @@ function Onboarding({ onDone }) {
   )
 }
 
+const greeting = () => {
+  const h = new Date().getHours()
+  return h < 5 ? 'Up late' : h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'
+}
+
 const svg = (d) => (
   <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">{d}</svg>
 )
@@ -174,6 +179,7 @@ function Main({ session, household }) {
       let s = sheetRef.current
       while (stackRef.current.length > depth) s = stackRef.current.pop()
       setSheetState(depth === 0 ? null : s)
+      setTabDir('left')
       setTabState(e.state?.tab || 'home')
     }
     window.addEventListener('popstate', onPop)
@@ -187,8 +193,11 @@ function Main({ session, household }) {
   const replaceSheet = useCallback((next) => setSheetState(next), [])
   const closeSheet = useCallback(() => { if (stackRef.current.length) window.history.back(); else setSheetState(null) }, [])
   const closeAll = useCallback(() => { const d = stackRef.current.length; if (d) window.history.go(-d); else setSheetState(null) }, [])
+  const [tabDir, setTabDir] = useState('none')
   const setTab = useCallback((id) => {
     if (id === tabRef.current) { window.scrollTo({ top: 0, behavior: 'smooth' }); return }
+    const order = ['home', 'inventory', 'recipes', 'list', 'settings']
+    setTabDir(order.indexOf(id) > order.indexOf(tabRef.current) ? 'right' : 'left')
     setTabState(id)
     window.scrollTo(0, 0)
     window.history.pushState({ tab: id, depth: 0 }, '')
@@ -203,6 +212,7 @@ function Main({ session, household }) {
     members: hh.household_members,
   }), [household.id, household.monthly_budget, session.user.id, hh.items, hh.inventory, hh.shopping_list, hh.recipes, hh.reload, hh.purchases, hh.purchase_items, hh.cook_log, hh.households, hh.household_members])
 
+  const myName = hh.household_members.find((m) => m.user_id === session.user.id)?.display_name?.split(' ')[0]
   const showToast = useCallback((t) => setToast(typeof t === 'string' ? { text: t } : t), [])
   const clearToast = useCallback(() => setToast(null), [])
   const onScanResult = useCallback((r) => replaceSheet({ type: 'add', preset: r }), [replaceSheet])
@@ -213,9 +223,10 @@ function Main({ session, household }) {
   return (
     <div className="app">
       <header className="top">
-        <h1>{tab === 'home' ? household.name : TABS.find((t) => t.id === tab).label}</h1>
+        {tab === 'home' && <p className="greeting">{greeting()}{myName ? `, ${myName}` : ''}</p>}
+        <h1 key={tab} className="title-in">{tab === 'home' ? household.name : TABS.find((t) => t.id === tab).label}</h1>
       </header>
-      <main>
+      <main key={tab} className={`tab-pane slide-${tabDir}`}>
         {hh.loading ? <p className="muted center">Loading…</p> : <>
           {tab === 'home' && <HomeScreen {...common} onAdd={() => openSheet({ type: 'add' })} onScan={() => openSheet({ type: 'scan' })} onAsk={() => openSheet({ type: 'ask' })} onQuickAdd={() => openSheet({ type: 'quickadd' })} onSpending={() => openSheet({ type: 'spending' })} />}
           {tab === 'inventory' && <InventoryScreen {...common} onAdd={(locationId) => openSheet({ type: 'add', preset: { locationId } })} />}
@@ -229,9 +240,10 @@ function Main({ session, household }) {
         <button className="fab" onClick={() => openSheet({ type: 'scan' })} aria-label="Scan">{svg(<><path d="M4 8V5h3M17 5h3v3M20 16v3h-3M7 19H4v-3" /><path d="M8 9v6M11 9v6M14 9v6M17 9v6" /></>)}</button>
       )}
 
-      <nav className="tabbar">
+      <nav className="tabbar" style={{ '--tab-i': TABS.findIndex((t) => t.id === tab), '--tab-n': TABS.length }}>
+        <span className="tab-blob" aria-hidden="true" />
         {TABS.map((t) => (
-          <button key={t.id} className={tab === t.id ? 'on' : ''} onClick={() => setTab(t.id)}>
+          <button key={t.id} className={tab === t.id ? 'on' : ''} onClick={() => setTab(t.id)} aria-current={tab === t.id ? 'page' : undefined}>
             <span className="tab-icon">{t.icon}{t.id === 'list' && listCount > 0 && <span className="dot">{listCount}</span>}</span>
             <span>{t.label}</span>
           </button>
