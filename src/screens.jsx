@@ -6,6 +6,7 @@ import {
 import { supabase } from './supabase'
 import { itemIcon } from './icons'
 import { Sparkle, ClaudeUsage } from './aiScreens'
+import { BudgetCard, PriceHistory, BudgetSetting } from './money'
 
 const fmt = (n) => (Number.isInteger(Number(n)) ? Number(n) : Number(n).toFixed(1))
 
@@ -68,6 +69,7 @@ export function ItemActionsSheet({ ctx, row: given, locations, onClose, onEdit, 
   return (
     <Sheet title={<span className="sheet-title-icon">{itemIcon(item.name, loc?.icon)} {item.name}</span>} onClose={onClose}>
       <p className="hint">{fmt(row.quantity)} {row.unit}{loc ? ` · ${loc.name}` : ''}</p>
+      <PriceHistory ctx={ctx} itemId={item.id} />
       <div className="action-list">
         <button disabled={listed} onClick={async () => { await addToList(ctx, { name: item.name, itemId: item.id }); onToast({ text: `${item.name} added to list` }); onClose() }}>
           <span>🛒</span>{listed ? 'Already on the shopping list' : 'Running low — add to list'}
@@ -103,7 +105,7 @@ function totals(ctx) {
   return t
 }
 
-export function HomeScreen({ ctx, locations, onAdd, onScan, onOpen, onToast, onAsk, onQuickAdd }) {
+export function HomeScreen({ ctx, locations, onAdd, onScan, onOpen, onToast, onAsk, onQuickAdd, onSpending }) {
   const [q, setQ] = useState('')
   const itemName = (r) => ctx.items.find((i) => i.id === r.item_id)?.name || ''
   const results = q.trim()
@@ -152,6 +154,7 @@ export function HomeScreen({ ctx, locations, onAdd, onScan, onOpen, onToast, onA
             <div className={expiring.length ? 'warn' : ''}><b>{expiring.length}</b><span>expiring</span></div>
             <div><b>{ctx.shopping_list.filter((l) => !l.checked).length}</b><span>on list</span></div>
           </div>
+          <BudgetCard ctx={ctx} onOpen={onSpending} />
           <Group title="Expiring soon" count={expiring.length || null}>
             {expiring.length === 0 ? <p className="group-empty">Nothing expiring in the next 3 days.</p>
               : expiring.map((r) => <InventoryRow key={r.id} row={r} {...rowProps} />)}
@@ -336,6 +339,7 @@ export function SettingsScreen({ ctx, household, members, session }) {
           }}>Save</button>
         </div>
       </section>
+      <BudgetSetting ctx={ctx} householdId={household.id} />
       <ClaudeUsage householdId={household.id} />
       <ChangeEmail session={session} />
       <ChangePassword />

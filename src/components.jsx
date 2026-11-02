@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { addToInventory, lookupBarcode, updateItem, updateRow, removeRow } from './actions'
+import { localDate } from './dates'
 
 export const UNITS = ['ct', 'pack', 'box', 'can', 'bottle', 'bag', 'jar', 'lb', 'oz', 'gal', 'roll', 'dozen']
 
@@ -153,7 +154,7 @@ export function AddItemSheet({ ctx, locations, preset = {}, onClose, onAdded, on
           <input type="date" value={expires} onChange={(e) => setExpires(e.target.value)} />
           {[3, 7, 30].map((d) => (
             <button type="button" key={d} className="chip" onClick={() => {
-              const x = new Date(); x.setDate(x.getDate() + d); setExpires(x.toISOString().slice(0, 10))
+              const x = new Date(); x.setDate(x.getDate() + d); setExpires(localDate(x))
             }}>+{d}d</button>
           ))}
         </div>

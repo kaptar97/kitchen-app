@@ -3,6 +3,22 @@ import { supabase } from './supabase'
 import { LIBRARY } from './library'
 import { addToInventory, addToList, removeRow } from './actions'
 import { matchItem, parseIngredient, keyWords } from './recipes'
+import { localDate, localMonth } from './dates'
+
+function spendingSummary(ctx) {
+  if (!ctx.purchases) return ''
+  const now = new Date()
+  const key = (d) => d.slice(0, 7)
+  const thisM = localMonth(now)
+  const trips = ctx.purchases.filter((p) => key(p.purchased_on) === thisM)
+  const total = trips.reduce((a, p) => a + Number(p.total || 0), 0)
+  const ids = new Set(trips.map((p) => p.id))
+  const byCat = {}
+  ;(ctx.purchase_items || []).filter((i) => ids.has(i.purchase_id)).forEach((i) => { byCat[i.category || 'Other'] = (byCat[i.category || 'Other'] || 0) + Number(i.price || 0) })
+  const cats = Object.entries(byCat).sort((a, b) => b[1] - a[1]).map(([c, v]) => `${c} $${v.toFixed(2)}`).join(', ')
+  const recentPrices = (ctx.purchase_items || []).filter((i) => i.price).slice(-40).map((i) => `${i.name} $${Number(i.price).toFixed(2)}`).join(', ')
+  return `\nGrocery spending this month: $${total.toFixed(2)} of a $${Number(ctx.budget || 0).toFixed(0)} budget across ${trips.length} trips.${cats ? ` By category: ${cats}.` : ''}${recentPrices ? `\nRecent prices paid: ${recentPrices}` : ''}`
+}
 
 // A compact text snapshot of the household for Claude.
 export function buildContext(ctx, locations) {
@@ -16,8 +32,10 @@ export function buildContext(ctx, locations) {
   const savedTitles = new Set(ctx.recipes.map((r) => r.title.toLowerCase()))
   const lib = LIBRARY.filter((r) => !savedTitles.has(r.title.toLowerCase()))
     .map((r) => `- ${r.title} [${r.tags.join(', ')}]: ${r.ingredients.map((i) => i.name).join(', ')}`)
+  const spend = spendingSummary(ctx)
   return [
     `Locations: ${locations.map((l) => l.name).join(', ')}`,
+    spend,
     `\nInventory (${inv.length} items):\n${inv.join('\n') || '(empty)'}`,
     `\nShopping list:\n${list.join('\n') || '(empty)'}`,
     `\nSaved family recipes:\n${mine.join('\n') || '(none yet)'}`,
@@ -57,7 +75,7 @@ export function photoToBase64(file, maxSide = 1600) {
   })
 }
 
-const isoInDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10) }
+const isoInDays = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return localDate(d) }
 const findLocation = (locations, name) => {
   const n = String(name || '').toLowerCase()
   return locations.find((l) => l.name.toLowerCase() === n)?.id ||
@@ -74,18 +92,45 @@ export function toInventoryRows(items, locations) {
     unit: i.unit || 'ct',
     locationId: findLocation(locations, i.location),
     expiresOn: Number.isFinite(Number(i.expires_in_days)) && i.expires_in_days != null ? isoInDays(Number(i.expires_in_days)) : '',
+    price: i.price != null && Number.isFinite(Number(i.price)) ? Number(i.price).toFixed(2) : '',
+    category: i.category || 'Other',
   }))
 }
 
 export async function applyInventoryRows(ctx, rows) {
   // Run one at a time so repeated items merge correctly.
   let local = { ...ctx }
+  const itemIds = []
   for (const r of rows) {
-    await addToInventory(local, { name: r.name, quantity: r.quantity, unit: r.unit, locationId: r.locationId, expiresOn: r.expiresOn || null })
+    const item = await addToInventory(local, { name: r.name, quantity: r.quantity, unit: r.unit, locationId: r.locationId, expiresOn: r.expiresOn || null })
+    itemIds.push(item?.id || null)
     const { data: items } = await supabase.from('items').select('*').eq('household_id', ctx.householdId)
     const { data: inventory } = await supabase.from('inventory').select('*').eq('household_id', ctx.householdId)
     local = { ...local, items: items || local.items, inventory: inventory || local.inventory }
   }
+  return itemIds
+}
+
+// Record a shopping trip (from a receipt or typed in by hand).
+export async function logPurchase(ctx, { store, date, total, tax, source = 'receipt', note, items = [], itemIds = [] }) {
+  const lineSum = items.reduce((a, i) => a + (Number(i.price) || 0), 0)
+  const { data: trip, error } = await supabase.from('purchases').insert({
+    household_id: ctx.householdId, created_by: ctx.userId, source, note: note || null,
+    store: store?.trim() || null,
+    purchased_on: /^\d{4}-\d{2}-\d{2}$/.test(date || '') ? date : localDate(),
+    total: Number(total) > 0 ? Number(total) : Math.round(lineSum * 100) / 100,
+    tax: Number(tax) > 0 ? Number(tax) : null,
+  }).select().single()
+  if (error) throw error
+  if (items.length) {
+    await supabase.from('purchase_items').insert(items.map((i, k) => ({
+      household_id: ctx.householdId, purchase_id: trip.id, item_id: itemIds[k] || null,
+      name: i.name, quantity: Number(i.quantity) || null, unit: i.unit || null,
+      price: i.price === '' || i.price == null ? null : Number(i.price), category: i.category || 'Other',
+    })))
+  }
+  await Promise.all([ctx.reload('purchases'), ctx.reload('purchase_items')])
+  return trip
 }
 
 export async function applyShopping(ctx, items) {

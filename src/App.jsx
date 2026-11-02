@@ -3,6 +3,8 @@ import { supabase, configured } from './supabase'
 import { useHousehold } from './useHousehold'
 import { AddItemSheet, EditSheet, ScannerSheet, Toast } from './components'
 import { AskClaudeSheet, QuickAddSheet } from './aiScreens'
+import { SpendingSheet, TripSheet, LogTripSheet } from './money'
+import { CookSheet } from './cook'
 import { RecipesScreen, RecipeDetailSheet, RecipeFormSheet } from './recipeScreens'
 import { HomeScreen, InventoryScreen, ShoppingScreen, SettingsScreen, ItemActionsSheet } from './screens'
 
@@ -196,7 +198,10 @@ function Main({ session, household }) {
   const ctx = useMemo(() => ({
     householdId: household.id, userId: session.user.id,
     items: hh.items, inventory: hh.inventory, shopping_list: hh.shopping_list, recipes: hh.recipes, reload: hh.reload,
-  }), [household.id, session.user.id, hh.items, hh.inventory, hh.shopping_list, hh.recipes, hh.reload])
+    purchases: hh.purchases, purchase_items: hh.purchase_items, cook_log: hh.cook_log,
+    budget: Number(hh.households[0]?.monthly_budget ?? household.monthly_budget ?? 700),
+    members: hh.household_members,
+  }), [household.id, household.monthly_budget, session.user.id, hh.items, hh.inventory, hh.shopping_list, hh.recipes, hh.reload, hh.purchases, hh.purchase_items, hh.cook_log, hh.households, hh.household_members])
 
   const showToast = useCallback((t) => setToast(typeof t === 'string' ? { text: t } : t), [])
   const clearToast = useCallback(() => setToast(null), [])
@@ -212,7 +217,7 @@ function Main({ session, household }) {
       </header>
       <main>
         {hh.loading ? <p className="muted center">Loading…</p> : <>
-          {tab === 'home' && <HomeScreen {...common} onAdd={() => openSheet({ type: 'add' })} onScan={() => openSheet({ type: 'scan' })} onAsk={() => openSheet({ type: 'ask' })} onQuickAdd={() => openSheet({ type: 'quickadd' })} />}
+          {tab === 'home' && <HomeScreen {...common} onAdd={() => openSheet({ type: 'add' })} onScan={() => openSheet({ type: 'scan' })} onAsk={() => openSheet({ type: 'ask' })} onQuickAdd={() => openSheet({ type: 'quickadd' })} onSpending={() => openSheet({ type: 'spending' })} />}
           {tab === 'inventory' && <InventoryScreen {...common} onAdd={(locationId) => openSheet({ type: 'add', preset: { locationId } })} />}
           {tab === 'recipes' && <RecipesScreen ctx={ctx} onToast={showToast} onOpen={(r) => openSheet({ type: 'recipe', recipe: r })} onAdd={() => openSheet({ type: 'recipeForm' })} />}
           {tab === 'list' && <ShoppingScreen ctx={ctx} locations={hh.locations} members={hh.household_members} onToast={showToast} />}
@@ -235,9 +240,13 @@ function Main({ session, household }) {
 
       {sheet?.type === 'add' && <AddItemSheet ctx={ctx} locations={hh.locations} preset={sheet.preset} onClose={closeSheet} onAdded={showToast} onQuickAdd={() => replaceSheet({ type: 'quickadd' })} />}
       {sheet?.type === 'ask' && <AskClaudeSheet ctx={ctx} locations={hh.locations} onClose={closeSheet} onToast={showToast} onOpenRecipe={(r) => openSheet({ type: 'recipe', recipe: r })} />}
+      {sheet?.type === 'spending' && <SpendingSheet ctx={ctx} onClose={closeSheet} onOpenTrip={(t) => openSheet({ type: 'trip', trip: t })} onLogTrip={() => openSheet({ type: 'logTrip' })} />}
+      {sheet?.type === 'trip' && <TripSheet ctx={ctx} trip={sheet.trip} onClose={closeSheet} />}
+      {sheet?.type === 'logTrip' && <LogTripSheet ctx={ctx} onClose={closeSheet} onToast={showToast} />}
       {sheet?.type === 'quickadd' && <QuickAddSheet ctx={ctx} locations={hh.locations} onClose={closeSheet} onToast={showToast} />}
       {sheet?.type === 'scan' && <ScannerSheet ctx={ctx} onClose={closeSheet} onResult={onScanResult} />}
-      {sheet?.type === 'recipe' && <RecipeDetailSheet ctx={ctx} recipe={sheet.recipe} onClose={closeSheet} onEdit={(r) => openSheet({ type: 'recipeForm', recipe: r })} onToast={showToast} />}
+      {sheet?.type === 'recipe' && <RecipeDetailSheet ctx={ctx} recipe={sheet.recipe} onClose={closeSheet} onEdit={(r) => openSheet({ type: 'recipeForm', recipe: r })} onToast={showToast} onCook={(r, servings) => openSheet({ type: 'cook', recipe: r, servings })} />}
+      {sheet?.type === 'cook' && <CookSheet ctx={ctx} recipe={sheet.recipe} servings={sheet.servings} onClose={closeSheet} onToast={showToast} />}
       {sheet?.type === 'recipeForm' && <RecipeFormSheet ctx={ctx} locations={hh.locations} recipe={sheet.recipe} onClose={closeSheet} onSaved={(r) => { replaceSheet({ type: 'recipe', recipe: r }); showToast('Recipe saved') }} />}
       {sheet?.type === 'actions' && <ItemActionsSheet ctx={ctx} row={sheet.row} locations={hh.locations} onClose={closeSheet} onEdit={(row) => openSheet({ type: 'edit', row })} onToast={showToast} />}
       {sheet?.type === 'edit' && <EditSheet ctx={ctx} row={sheet.row} locations={hh.locations} onClose={closeAll} onToast={showToast} />}

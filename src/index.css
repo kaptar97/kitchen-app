@@ -301,3 +301,48 @@ textarea.big-text:focus { outline: 2px solid var(--accent); outline-offset: -1px
 .attach-preview { width: 100%; display: flex; align-items: center; gap: 8px; }
 .attach-preview img { height: 56px; border-radius: 10px; }
 .attach-preview button { width: 28px; height: 28px; border-radius: 50%; background: var(--fill); color: var(--muted); }
+.receipt-box { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+.receipt-box .row span { white-space: nowrap; }
+.price-in { display: flex; align-items: center; gap: 4px; grid-column: span 1; color: var(--muted); }
+.qa-meta input[type=date] { grid-column: 1 / 3; }
+.price-in input { min-width: 0; }
+
+/* ---------- Money ---------- */
+.budget-card { width: 100%; margin-top: 22px; text-align: left; background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; box-shadow: var(--shadow); }
+.budget-label { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; }
+.budget-arrow { color: var(--muted); font-size: 22px; line-height: 1; }
+.budget-nums { display: flex; align-items: baseline; gap: 2px; }
+.budget-nums b { font-size: 28px; letter-spacing: -.02em; }
+.budget-nums.big b { font-size: 38px; }
+.budget-nums span { color: var(--muted); font-size: 16px; }
+.budget-nums b.over { color: var(--bad); }
+.bar { height: 10px; background: var(--fill); border-radius: 99px; overflow: hidden; }
+.bar-fill { height: 100%; background: var(--accent); border-radius: 99px; transition: width .3s; }
+.bar-fill.warn { background: var(--warn); }
+.month-nav { display: flex; align-items: center; justify-content: space-between; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 4px; }
+.month-nav button { width: 44px; height: 40px; font-size: 24px; color: var(--accent); border-radius: 10px; }
+.month-nav button:disabled { color: var(--line); }
+.spend-hero { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; margin-top: 12px; display: flex; flex-direction: column; gap: 10px; }
+.up { color: var(--bad); font-weight: 600; } .down { color: var(--accent); font-weight: 600; }
+.cat-row { display: flex; align-items: center; gap: 12px; padding: 10px 14px; }
+.cat-row + .cat-row { border-top: 1px solid var(--line); }
+.cat-icon { width: 34px; height: 34px; border-radius: 10px; background: var(--fill); display: grid; place-items: center; font-size: 18px; flex: none; }
+.cat-body { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+.cat-body .bar { height: 6px; }
+.simple-line { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 12px 14px; text-align: left; font-size: 16px; }
+.simple-line + .simple-line { border-top: 1px solid var(--line); }
+.trip-main { display: flex; flex-direction: column; }
+.price-hist { background: var(--accent-soft); color: var(--ink); border-radius: 12px; padding: 10px 12px; font-size: 14px; margin: 6px 0 4px; }
+.money-input { display: flex; align-items: center; gap: 6px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding-left: 14px; }
+.money-input span { color: var(--muted); font-weight: 600; font-size: 18px; }
+.money-input input { border: none; padding-left: 0; font-size: 20px; font-weight: 700; }
+.money-input input:focus { outline: none; }
+.made-line { color: var(--accent); font-weight: 600; font-size: 14px; margin: 0 0 6px; }
+.cook-btn { margin-top: 22px; }
+.cook-row { padding: 12px 14px; display: flex; flex-direction: column; gap: 6px; }
+.cook-row + .cook-row { border-top: 1px solid var(--line); }
+.cook-name { font-weight: 700; font-size: 16px; }
+.cook-modes { display: flex; gap: 6px; flex-wrap: wrap; }
+.cook-modes button { background: var(--fill); border-radius: 999px; padding: 8px 12px; font-weight: 600; font-size: 14px; display: inline-flex; align-items: center; gap: 4px; min-height: 38px; }
+.cook-modes button.on { background: var(--accent); color: var(--accent-ink); }
+.cook-modes input { width: 54px; min-height: 28px; padding: 2px 6px; font-size: 14px; font-weight: 700; text-align: center; border-radius: 8px; }

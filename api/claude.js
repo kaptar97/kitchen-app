@@ -40,8 +40,20 @@ const TOOLS = {
               unit: { type: 'string', enum: ['ct', 'pack', 'box', 'can', 'bottle', 'bag', 'jar', 'lb', 'oz', 'gal', 'roll', 'dozen'] },
               location: { type: 'string', description: LOCATION_HINT },
               expires_in_days: { type: 'integer', description: 'Typical fridge/freezer life for perishables; omit for shelf-stable items and non-food.' },
+              price: { type: 'number', description: 'Only when reading a receipt: the amount paid for this line (after any item discount), in dollars.' },
+              category: { type: 'string', enum: ['Produce', 'Meat & Seafood', 'Dairy & Eggs', 'Bakery', 'Pantry', 'Frozen', 'Snacks', 'Drinks', 'Household', 'Personal care', 'Other'] },
             },
-            required: ['name', 'quantity', 'unit', 'location'],
+            required: ['name', 'quantity', 'unit', 'location', 'category'],
+          },
+        },
+        receipt: {
+          type: 'object',
+          description: 'Only when reading a receipt.',
+          properties: {
+            store: { type: 'string', description: 'Store name as people say it, e.g. "Walmart", "Stop & Shop"' },
+            date: { type: 'string', description: 'Purchase date YYYY-MM-DD if printed' },
+            total: { type: 'number', description: 'Final total paid' },
+            tax: { type: 'number' },
           },
         },
       },
@@ -93,7 +105,8 @@ The user is listing groceries they just bought or have. Call add_to_inventory wi
 - Pick the best location from the household's locations (meat/fish → Freezer unless they say fresh for this week; dairy, produce → Fridge; dry goods → Pantry; paper and cleaning → Garage/Cleaning/Bathroom).
 - Add expires_in_days for perishables using typical fridge life (milk 7, eggs 21, fresh chicken 2, ground beef 2, berries 5, lettuce 7, bread 7, frozen meat 90). Omit for shelf-stable and non-food.
 Do not add anything the user didn't mention.
-If you're given a receipt photo: read every purchased line. Decode store abbreviations into plain names ("GV WHL MLK GAL" → Milk, 1 gal; "BNLS SKNLS CHKN BRST" → Chicken breasts). Use the line's count or weight for quantity; combine duplicate lines. Skip tax, totals, bag fees, deposits, coupons, discounts and anything unreadable. Include household items (paper towels, soap) too.`
+If you're given a receipt photo: read every purchased line. Decode store abbreviations into plain names ("GV WHL MLK GAL" → Milk, 1 gal; "BNLS SKNLS CHKN BRST" → Chicken breasts). Use the line's count or weight for quantity; combine duplicate lines. Skip tax, totals, bag fees, deposits, coupons, discounts and anything unreadable as separate items. Include household items (paper towels, soap) too.
+For receipts also fill: each item's price (what was paid for that line, net of its own discount), and the receipt object (store, date, total, tax). Always set each item's category.`
   }
   if (mode === 'recipe') {
     return `${base}

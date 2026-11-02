@@ -9,6 +9,7 @@ import { LIBRARY } from './library'
 import { itemIcon } from './icons'
 import { askClaude, photoToBase64, toRecipeDraft } from './ai'
 import { Sparkle } from './aiScreens'
+import { cookHistory, timeAgo } from './cook'
 
 const timeText = (r) => {
   const t = (r.prep_minutes || 0) + (r.cook_minutes || 0)
@@ -60,7 +61,7 @@ export async function addMissingFor(ctx, recipes, expiringIds) {
   return seen.size
 }
 
-function RecipeRow({ r, st, selecting, selected, onTap, saved, showNeed }) {
+function RecipeRow({ r, st, selecting, selected, onTap, saved, showNeed, madeCountOf = 0 }) {
   return (
     <button className={`row-item recipe-row ${selected ? 'selected' : ''}`} onClick={onTap}>
       {selecting && <span className={`check ${selected ? 'on' : ''}`}>{selected ? '✓' : ''}</span>}
@@ -73,6 +74,7 @@ function RecipeRow({ r, st, selecting, selected, onTap, saved, showNeed }) {
             ? <span className="exp ok">✓ Have everything</span>
             : <span>Have {st.have} of {st.total}</span>)}
           {saved && <span className="tag">Saved</span>}
+          {madeCountOf > 0 && <span className="muted">🍳 {madeCountOf}×</span>}
         </span>
         {showNeed && st.missing.length > 0 && <span className="need-line">Need: {st.missing.map(shortName).join(', ')}</span>}
         {st.usesExpiring.length > 0 && <span className="use-up">⏰ Uses up {st.usesExpiring.join(', ')}</span>}
@@ -128,11 +130,13 @@ export function RecipesScreen({ ctx, onOpen, onAdd, onToast }) {
   const ready = rows.filter((x) => x.st.total > 0 && x.st.missing.length === 0).sort(rank)
   const almost = rows.filter((x) => x.st.missing.length >= 1 && x.st.missing.length <= 2).sort(rank)
   const useUp = rows.filter((x) => x.st.usesExpiring.length && x.st.missing.length > 2).sort(rank)
-  const sorted = [...rows].sort((a, b) => a.r.title.localeCompare(b.r.title))
+  const [mostMade, setMostMade] = useState(false)
+  const madeCount = (r) => cookHistory(ctx, r).count
+  const sorted = [...rows].sort((a, b) => (mostMade ? madeCount(b.r) - madeCount(a.r) : 0) || a.r.title.localeCompare(b.r.title))
 
   const rowEl = (x, extra = {}) => (
     <RecipeRow key={x.r.id} r={x.r} st={x.st} selecting={selecting} selected={selected.has(x.r.id)}
-      onTap={() => tap(x.r)} saved={view === 'browse' && savedTitles.has(x.r.title.toLowerCase())} {...extra} />
+      onTap={() => tap(x.r)} saved={view === 'browse' && savedTitles.has(x.r.title.toLowerCase())} madeCountOf={madeCount(x.r)} {...extra} />
   )
 
   return (
@@ -152,6 +156,7 @@ export function RecipesScreen({ ctx, onOpen, onAdd, onToast }) {
           : <button className={selecting ? 'primary' : 'secondary'} onClick={() => { setSelecting(!selecting); setSelected(new Set()) }}>{selecting ? 'Done' : 'Select'}</button>}
       </div>
       <div className="seg" style={{ marginTop: 10 }}>
+        {view !== 'cook' && ctx.cook_log.length > 0 && <button className={mostMade ? 'on' : ''} onClick={() => setMostMade(!mostMade)}>{mostMade ? '✓ ' : ''}Most made</button>}
         {view === 'mine' && ctx.recipes.length > 0 && <button className={selecting ? 'on' : ''} onClick={() => { setSelecting(!selecting); setSelected(new Set()) }}>{selecting ? '✓ Selecting' : 'Select'}</button>}
         {view === 'cook' && <button className={includeLib ? 'on' : ''} onClick={() => setIncludeLib(!includeLib)}>{includeLib ? '✓ ' : ''}Include library</button>}
         <button className={!tag ? 'on' : ''} onClick={() => setTag(null)}>All</button>
@@ -218,7 +223,7 @@ function Group({ title, count, children }) {
   )
 }
 
-export function RecipeDetailSheet({ ctx, recipe: given, onClose, onEdit, onToast }) {
+export function RecipeDetailSheet({ ctx, recipe: given, onClose, onEdit, onToast, onCook }) {
   const recipe = (!given.library && ctx.recipes.find((x) => x.id === given.id)) || given
   const base = Number(recipe.servings) || null
   const [servings, setServings] = useState(base || 1)
@@ -259,6 +264,7 @@ export function RecipeDetailSheet({ ctx, recipe: given, onClose, onEdit, onToast
           ? <img className="hero" src={recipe.image_url} alt="" referrerPolicy="no-referrer" onError={(e) => { e.currentTarget.style.display = 'none' }} />
           : <div className="hero-emoji">{recipe.emoji || LIBRARY.find((l) => l.title === recipe.title)?.emoji || itemIcon(recipe.title, '🍽️')}</div>}
         <h2>{recipe.title}</h2>
+        {(() => { const h = cookHistory(ctx, recipe); return h.count ? <p className="made-line">🍳 Made {h.count}× · last {timeAgo(h.last)}</p> : null })()}
         <div className="meta-row">
           {recipe.prep_minutes ? <span>Prep {recipe.prep_minutes} min</span> : null}
           {recipe.cook_minutes ? <span>Cook {recipe.cook_minutes} min</span> : null}
@@ -300,6 +306,7 @@ export function RecipeDetailSheet({ ctx, recipe: given, onClose, onEdit, onToast
           </>
         )}
         {recipe.notes && (<><div className="group-head" style={{ marginTop: 22 }}><span>Notes</span></div><p className="notes">{recipe.notes}</p></>)}
+        <button className="primary big cook-btn" onClick={() => onCook(recipe, base ? servings : null)}>🍳 I made this</button>
         {recipe.source_url && <a className="source" href={recipe.source_url} target="_blank" rel="noreferrer">View original recipe ↗</a>}
         {recipe.library ? (
           alreadySaved

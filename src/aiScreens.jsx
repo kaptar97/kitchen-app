@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { Sheet, UNITS } from './components'
 import { supabase } from './supabase'
+import { localDate } from './dates'
 import {
-  askClaude, photoToBase64, toInventoryRows, applyInventoryRows, applyShopping, applyRemovals, toRecipeDraft, saveRecipeDraft, describeItems,
+  askClaude, photoToBase64, toInventoryRows, applyInventoryRows, logPurchase, applyShopping, applyRemovals, toRecipeDraft, saveRecipeDraft, describeItems,
 } from './ai'
 
 export const Sparkle = ({ size = 18 }) => (
@@ -79,8 +80,12 @@ export function AskClaudeSheet({ ctx, locations, onClose, onToast, onOpenRecipe 
         setStatus(mi, ai, 'done', { result: `Added ${n} to the list` })
       } else if (a.name === 'add_to_inventory') {
         const rows = toInventoryRows(a.input.items, locations)
-        await applyInventoryRows(ctx, rows)
-        setStatus(mi, ai, 'done', { result: `Added ${rows.length} to the house` })
+        const itemIds = await applyInventoryRows(ctx, rows)
+        const rc = a.input.receipt
+        if (rc || rows.some((r) => r.price !== '')) {
+          const trip = await logPurchase(ctx, { ...rc, items: rows, itemIds })
+          setStatus(mi, ai, 'done', { result: `Added ${rows.length} to the house · logged $${Number(trip.total).toFixed(2)}${trip.store ? ` at ${trip.store}` : ''}` })
+        } else setStatus(mi, ai, 'done', { result: `Added ${rows.length} to the house` })
       } else if (a.name === 'remove_from_inventory') {
         const gone = await applyRemovals(ctx, a.input.items)
         setStatus(mi, ai, 'done', { result: gone.length ? `Marked used up: ${gone.join(', ')}` : 'Couldn’t find those in the house' })
@@ -185,6 +190,7 @@ function ActionCard({ a, locations, onRun, onOpenRecipe }) {
 export function QuickAddSheet({ ctx, locations, onClose, onToast }) {
   const [text, setText] = useState('')
   const [rows, setRows] = useState(null)
+  const [receipt, setReceipt] = useState(null) // { store, date, total, tax }
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
 
@@ -194,8 +200,14 @@ export function QuickAddSheet({ ctx, locations, onClose, onToast }) {
     try {
       const image = file ? await photoToBase64(file, 2000) : undefined
       const r = await askClaude({ ctx, locations, mode: 'quickadd', text: file ? '' : text, image })
-      const items = r.actions?.find((a) => a.name === 'add_to_inventory')?.input?.items
+      const input = r.actions?.find((a) => a.name === 'add_to_inventory')?.input
+      const items = input?.items
       const next = toInventoryRows(items, locations)
+      const rc = input?.receipt
+      setReceipt(file || rc ? {
+        store: rc?.store || '', date: /^\d{4}-\d{2}-\d{2}$/.test(rc?.date || '') ? rc.date : localDate(),
+        total: rc?.total != null ? Number(rc.total).toFixed(2) : '', tax: rc?.tax ?? null,
+      } : null)
       if (!next.length) setErr(file ? 'Couldn’t read items from that photo. Try a closer, flatter, well-lit shot.' : 'Claude didn’t find any items. Try listing them like “2 gallons milk, dozen eggs”.')
       else setRows(next)
     } catch (e) { setErr(e.message) }
@@ -205,8 +217,11 @@ export function QuickAddSheet({ ctx, locations, onClose, onToast }) {
   const addAll = async () => {
     setBusy(true)
     try {
-      await applyInventoryRows(ctx, rows)
-      onToast({ text: `Added ${rows.length} item${rows.length === 1 ? '' : 's'} to the house` })
+      const itemIds = await applyInventoryRows(ctx, rows)
+      if (receipt) {
+        const trip = await logPurchase(ctx, { ...receipt, items: rows, itemIds })
+        onToast({ text: `Added ${rows.length} items · logged $${Number(trip.total).toFixed(2)}${trip.store ? ` at ${trip.store}` : ''}` })
+      } else onToast({ text: `Added ${rows.length} item${rows.length === 1 ? '' : 's'} to the house` })
       onClose()
     } catch (e) { setErr(e.message); setBusy(false) }
   }
@@ -228,6 +243,19 @@ export function QuickAddSheet({ ctx, locations, onClose, onToast }) {
       ) : (
         <div className="form">
           <p className="hint">Check it over, fix anything, then add.</p>
+          {receipt && (
+            <div className="receipt-box">
+              <div className="row">
+                <input placeholder="Store" value={receipt.store} onChange={(e) => setReceipt({ ...receipt, store: e.target.value })} />
+                <input type="date" value={receipt.date} onChange={(e) => setReceipt({ ...receipt, date: e.target.value })} />
+              </div>
+              <div className="row">
+                <span className="muted">Total paid $</span>
+                <input inputMode="decimal" value={receipt.total} onChange={(e) => setReceipt({ ...receipt, total: e.target.value.replace(/[^\d.]/g, '') })} placeholder="0.00" />
+              </div>
+              <p className="hint">This trip will be logged in your grocery spending.</p>
+            </div>
+          )}
           <div className="qa-rows">
             {rows.map((r) => (
               <div className="qa-row" key={r.key}>
@@ -240,12 +268,13 @@ export function QuickAddSheet({ ctx, locations, onClose, onToast }) {
                   <select value={r.unit} onChange={(e) => update(r.key, { unit: e.target.value })}>{UNITS.map((u) => <option key={u}>{u}</option>)}</select>
                   <select value={r.locationId} onChange={(e) => update(r.key, { locationId: e.target.value })}>{locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}</select>
                   <input type="date" value={r.expiresOn} onChange={(e) => update(r.key, { expiresOn: e.target.value })} />
+                  {receipt && <span className="price-in">$<input inputMode="decimal" placeholder="price" value={r.price} onChange={(e) => update(r.key, { price: e.target.value.replace(/[^\d.]/g, '') })} /></span>}
                 </div>
               </div>
             ))}
           </div>
           <button className="primary big" disabled={busy || !rows.length} onClick={addAll}>{busy ? 'Adding…' : `Add ${rows.length} item${rows.length === 1 ? '' : 's'}`}</button>
-          <button className="link" onClick={() => setRows(null)}>Back to text</button>
+          <button className="link" onClick={() => { setRows(null); setReceipt(null) }}>Back</button>
           {err && <p className="error">{err}</p>}
         </div>
       )}
