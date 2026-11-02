@@ -145,7 +145,7 @@ export default async function handler(req, res) {
   const token = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '')
   if (!token) return res.status(401).json({ error: 'Please sign in again.' })
 
-  const { mode = 'chat', householdId, context = '', messages = [], image, text } = req.body || {}
+  const { mode = 'chat', householdId, context = '', messages = [], image, text, kind, location } = req.body || {}
   if (!householdId) return res.status(400).json({ error: 'Missing household.' })
 
   // 1) Who is this? (Supabase checks the login token.)
@@ -176,7 +176,12 @@ export default async function handler(req, res) {
     msgs = [{
       role: 'user',
       content: imageBlock
-        ? [imageBlock, { type: 'text', text: `This is a photo of a grocery receipt (or groceries).${t ? ` Note from the user: ${t}` : ''}` }]
+        ? [imageBlock, {
+          type: 'text',
+          text: kind === 'shelf'
+            ? `This is a photo of the household's ${String(location || 'kitchen').slice(0, 40)} (shelf, fridge, freezer or cabinet), not a receipt. List every distinct food or household item you can clearly identify. Use "${String(location || '').slice(0, 40)}" as the location for all of them. Count what you can see (6 cans of tomatoes → 6 can; a carton of eggs → 1 dozen or 12 ct; a milk jug → 1 gal). Don't include prices or a receipt object. Skip anything you can't identify confidently; don't guess hidden contents of opaque containers or leftovers.${t ? ` Note from the user: ${t}` : ''}`
+            : `This is a photo of a grocery receipt (or groceries).${t ? ` Note from the user: ${t}` : ''}`,
+        }]
         : t,
     }]
     tools = [TOOLS.add_to_inventory]

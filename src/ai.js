@@ -43,13 +43,13 @@ export function buildContext(ctx, locations) {
   ].join('\n')
 }
 
-export async function askClaude({ ctx, locations, mode = 'chat', messages, text, image }) {
+export async function askClaude({ ctx, locations, mode = 'chat', messages, text, image, kind, location }) {
   const { data } = await supabase.auth.getSession()
   const token = data.session?.access_token
   const res = await fetch('/api/claude', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ mode, householdId: ctx.householdId, context: buildContext(ctx, locations), messages, text, image }),
+    body: JSON.stringify({ mode, householdId: ctx.householdId, context: buildContext(ctx, locations), messages, text, image, kind, location }),
   })
   let json = {}
   try { json = await res.json() } catch { /* ignore */ }

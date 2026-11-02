@@ -477,3 +477,7 @@ button:active:not(:disabled) { transform: scale(.96); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+.shelf-pick { background: var(--card); border-radius: 18px; padding: 12px; display: flex; flex-direction: column; gap: 10px; box-shadow: var(--shadow); }
+.qa-row.off { opacity: .55; }
+.qa-row .check { width: 26px; height: 26px; margin: 0; display: grid; place-items: center; }
+.already { font-size: 13px; color: var(--warn); font-weight: 600; padding-left: 4px; }

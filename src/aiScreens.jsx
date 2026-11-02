@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { Sheet, UNITS } from './components'
 import { supabase } from './supabase'
 import { localDate } from './dates'
+import { matchItem } from './recipes'
+import { locColor } from './theme'
 import {
   askClaude, photoToBase64, toInventoryRows, applyInventoryRows, logPurchase, applyShopping, applyRemovals, toRecipeDraft, saveRecipeDraft, describeItems,
 } from './ai'
@@ -195,27 +197,44 @@ export function QuickAddSheet({ ctx, locations, onClose, onToast }) {
   const [err, setErr] = useState('')
 
   const receiptRef = useRef(null)
-  const sort = async (file) => {
+  const shelfRef = useRef(null)
+  const [shelfLoc, setShelfLoc] = useState(null) // location id while choosing a shelf photo
+  const [isShelf, setIsShelf] = useState(false)
+  const sort = async (file, kind) => {
     setBusy(true); setErr('')
+    const shelfName = kind === 'shelf' ? locations.find((l) => l.id === shelfLoc)?.name : undefined
     try {
       const image = file ? await photoToBase64(file, 2000) : undefined
-      const r = await askClaude({ ctx, locations, mode: 'quickadd', text: file ? '' : text, image })
+      const r = await askClaude({ ctx, locations, mode: 'quickadd', text: file ? '' : text, image, kind, location: shelfName })
       const input = r.actions?.find((a) => a.name === 'add_to_inventory')?.input
       const items = input?.items
       const next = toInventoryRows(items, locations)
       const rc = input?.receipt
-      setReceipt(file || rc ? {
+      setIsShelf(kind === 'shelf')
+      if (kind === 'shelf') {
+        // Things already tracked start unticked so the photo doesn't double-count them.
+        const inHouse = ctx.items.filter((it) => ctx.inventory.some((x) => x.item_id === it.id))
+        next.forEach((row) => {
+          if (shelfLoc) row.locationId = shelfLoc
+          const m = matchItem(row.name, inHouse)
+          row.existing = m ? m.name : null
+          row.include = !m
+        })
+      }
+      setReceipt(kind !== 'shelf' && (file || rc) ? {
         store: rc?.store || '', date: /^\d{4}-\d{2}-\d{2}$/.test(rc?.date || '') ? rc.date : localDate(),
         total: rc?.total != null ? Number(rc.total).toFixed(2) : '', tax: rc?.tax ?? null,
       } : null)
-      if (!next.length) setErr(file ? 'Couldn’t read items from that photo. Try a closer, flatter, well-lit shot.' : 'Claude didn’t find any items. Try listing them like “2 gallons milk, dozen eggs”.')
+      if (!next.length) setErr(kind === 'shelf' ? 'Claude couldn’t make out items in that photo. Try a closer, brighter shot of one shelf.' : file ? 'Couldn’t read items from that photo. Try a closer, flatter, well-lit shot.' : 'Claude didn’t find any items. Try listing them like “2 gallons milk, dozen eggs”.')
       else setRows(next)
     } catch (e) { setErr(e.message) }
     setBusy(false)
   }
   const update = (key, patch) => setRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...patch } : r)))
+  const chosen = rows ? rows.filter((r) => r.include !== false) : []
   const addAll = async () => {
     setBusy(true)
+    const rows = chosen
     try {
       const itemIds = await applyInventoryRows(ctx, rows)
       if (receipt) {
@@ -231,7 +250,24 @@ export function QuickAddSheet({ ctx, locations, onClose, onToast }) {
       {!rows ? (
         <div className="form">
           <input ref={receiptRef} type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) sort(f) }} />
-          <button className="secondary big ai-btn" disabled={busy} onClick={() => receiptRef.current?.click()}>{busy ? 'Reading…' : '📷 Snap a receipt'}</button>
+          <input ref={shelfRef} type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) sort(f, 'shelf') }} />
+          <button className="secondary big ai-btn" disabled={busy} onClick={() => receiptRef.current?.click()}>{busy ? 'Reading…' : '🧾 Snap a receipt'}</button>
+          {shelfLoc === null ? (
+            <button className="secondary big ai-btn" disabled={busy} onClick={() => setShelfLoc(locations.find((l) => /fridge/i.test(l.name))?.id || locations[0]?.id)}>📷 Photo of your fridge or pantry</button>
+          ) : (
+            <div className="shelf-pick">
+              <p className="hint">Where’s the photo of?</p>
+              <div className="chips">
+                {locations.map((l) => (
+                  <button type="button" key={l.id} style={{ '--loc': locColor(l.name) }} className={`chip loc-chip ${shelfLoc === l.id ? 'on' : ''}`} onClick={() => setShelfLoc(l.id)}>
+                    <span className="loc-dot" />{l.name}
+                  </button>
+                ))}
+              </div>
+              <button className="primary big" disabled={busy} onClick={() => shelfRef.current?.click()}>{busy ? 'Claude is looking…' : '📷 Take the photo'}</button>
+              <p className="hint">Open the door, step back so a whole shelf or two is in frame, good light helps. Claude lists what it can see; you check it over.</p>
+            </div>
+          )}
           <div className="or"><span>or type it</span></div>
           <p className="hint">Type or say what you bought. Claude sorts it into items, picks where each goes, and guesses expiration dates.</p>
           <textarea className="big-text" rows={5} autoFocus value={text} onChange={(e) => setText(e.target.value)}
@@ -242,7 +278,7 @@ export function QuickAddSheet({ ctx, locations, onClose, onToast }) {
         </div>
       ) : (
         <div className="form">
-          <p className="hint">Check it over, fix anything, then add.</p>
+          <p className="hint">{isShelf ? 'Here’s what Claude spotted. Things already in the house are unticked so nothing gets counted twice.' : 'Check it over, fix anything, then add.'}</p>
           {receipt && (
             <div className="receipt-box">
               <div className="row">
@@ -258,11 +294,13 @@ export function QuickAddSheet({ ctx, locations, onClose, onToast }) {
           )}
           <div className="qa-rows">
             {rows.map((r) => (
-              <div className="qa-row" key={r.key}>
+              <div className={`qa-row ${r.include === false ? 'off' : ''}`} key={r.key}>
                 <div className="row">
+                  {isShelf && <button type="button" className={`check ${r.include !== false ? 'on' : ''}`} onClick={() => update(r.key, { include: r.include === false })} aria-label="Include">{r.include !== false ? '✓' : ''}</button>}
                   <input className="qa-name" value={r.name} onChange={(e) => update(r.key, { name: e.target.value })} />
                   <button className="icon-btn" onClick={() => setRows((rs) => rs.filter((x) => x.key !== r.key))} aria-label="Remove">✕</button>
                 </div>
+                {r.existing && <span className="already">Already in the house as “{r.existing}”. Tick to add more</span>}
                 <div className="qa-meta">
                   <input inputMode="decimal" value={r.quantity} onChange={(e) => update(r.key, { quantity: e.target.value.replace(/[^\d.]/g, '') })} />
                   <select value={r.unit} onChange={(e) => update(r.key, { unit: e.target.value })}>{UNITS.map((u) => <option key={u}>{u}</option>)}</select>
@@ -273,8 +311,8 @@ export function QuickAddSheet({ ctx, locations, onClose, onToast }) {
               </div>
             ))}
           </div>
-          <button className="primary big" disabled={busy || !rows.length} onClick={addAll}>{busy ? 'Adding…' : `Add ${rows.length} item${rows.length === 1 ? '' : 's'}`}</button>
-          <button className="link" onClick={() => { setRows(null); setReceipt(null) }}>Back</button>
+          <button className="primary big" disabled={busy || !chosen.length} onClick={addAll}>{busy ? 'Adding…' : `Add ${chosen.length} item${chosen.length === 1 ? '' : 's'}`}</button>
+          <button className="link" onClick={() => { setRows(null); setReceipt(null); setIsShelf(false) }}>Back</button>
           {err && <p className="error">{err}</p>}
         </div>
       )}
