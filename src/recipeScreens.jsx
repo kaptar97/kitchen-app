@@ -307,7 +307,7 @@ export function RecipeDetailSheet({ ctx, recipe: given, onClose, onEdit, onToast
         )}
         {recipe.notes && (<><div className="group-head" style={{ marginTop: 22 }}><span>Notes</span></div><p className="notes">{recipe.notes}</p></>)}
         <button className="primary big cook-btn" onClick={() => onCook(recipe, base ? servings : null)}>🍳 I made this</button>
-        {recipe.source_url && <a className="source" href={recipe.source_url} target="_blank" rel="noreferrer">View original recipe ↗</a>}
+        {recipe.source_url && <a className="source" href={recipe.source_url} target="_blank" rel="noreferrer">{/instagram|instagr\.am/i.test(recipe.source_url) ? 'Watch on Instagram ↗' : /tiktok/i.test(recipe.source_url) ? 'Watch on TikTok ↗' : 'View original recipe ↗'}</a>}
         {recipe.library ? (
           alreadySaved
             ? <p className="ready" style={{ marginTop: 18 }}>✓ Saved to your recipes</p>
@@ -328,10 +328,12 @@ const cleanName = (n) => {
   return c.charAt(0).toUpperCase() + c.slice(1)
 }
 
-export function RecipeFormSheet({ ctx, locations, recipe, onClose, onSaved }) {
+export function RecipeFormSheet({ ctx, locations, recipe, shared, onClose, onSaved }) {
   const editing = Boolean(recipe?.id)
-  const [step, setStep] = useState(editing ? 'form' : 'choose')
-  const [url, setUrl] = useState('')
+  const sharedUrl = shared ? (shared.url || (String(shared.text || '').match(/https?:\/\/\S+/) || [])[0] || '') : ''
+  const [step, setStep] = useState(editing ? 'form' : shared ? 'social' : 'choose')
+  const [url, setUrl] = useState(sharedUrl)
+  const [shots, setShots] = useState([]) // [{ file, url }]
   const [paste, setPaste] = useState('')
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
@@ -358,8 +360,23 @@ export function RecipeFormSheet({ ctx, locations, recipe, onClose, onSaved }) {
     setStep('form')
   }
 
+  const isSocial = (u) => /(^|\.)(instagram\.com|instagr\.am|tiktok\.com|facebook\.com|fb\.watch|pinterest\.|pin\.it|youtube\.com\/shorts|threads\.net)/i.test(u)
+  const importSocial = async () => {
+    setErr(''); setBusy(true)
+    try {
+      const images = await Promise.all(shots.map((s) => photoToBase64(s.file, 1400)))
+      const r = await askClaude({ ctx, locations, mode: 'recipe', images, source: 'social', text: paste.trim() || undefined })
+      const input = r.actions?.find((a) => a.name === 'create_recipe')?.input
+      if (!input) throw new Error('Claude couldn’t find a recipe in those screenshots.')
+      const tags = new Set(input.tags || [])
+      fromImport({ ...toRecipeDraft({ ...input, tags: [...tags] }), source_url: url.trim() || '' })
+    } catch (ex) { setErr(ex.message) }
+    setBusy(false)
+  }
   const importLink = async (e) => {
-    e.preventDefault(); setErr(''); setBusy(true)
+    e.preventDefault(); setErr('')
+    if (isSocial(url)) { setStep('social'); return }
+    setBusy(true)
     try {
       const res = await fetch(`/api/import-recipe?url=${encodeURIComponent(url.trim())}`)
       const json = await res.json()
@@ -433,6 +450,7 @@ export function RecipeFormSheet({ ctx, locations, recipe, onClose, onSaved }) {
             </div>
           </form>
           <div className="or"><span>or</span></div>
+          <button className="secondary big ai-btn" onClick={() => setStep('social')}>📱 From Instagram or TikTok</button>
           <button className="secondary big ai-btn" onClick={() => setStep('ai')}><Sparkle /> Photo of a recipe (Claude reads it)</button>
           <button className="secondary big" onClick={() => setStep('paste')}>Paste recipe text</button>
           <button className="secondary big" onClick={() => setStep('form')}>Type it in</button>
@@ -456,6 +474,40 @@ export function RecipeFormSheet({ ctx, locations, recipe, onClose, onSaved }) {
           <button className="secondary big ai-btn" disabled={!paste.trim() || busy} onClick={() => importWithClaude({ text: paste })}>{busy ? 'Claude is reading…' : <><Sparkle /> Messy? Let Claude clean it up</>}</button>
           <button className="link" onClick={() => { setStep('choose'); setErr('') }}>Back</button>
           {err && err !== 'blocked' && <p className="error">{err}</p>}
+        </div>
+      )}
+      {step === 'social' && (
+        <div className="form">
+          <div className="notice soft">
+            <b>Screenshot the recipe, then add the shots here.</b>
+            <ol>
+              <li>On the post, tap <b>more</b> to open the full caption (or pause the video on the ingredient list).</li>
+              <li>Screenshot it. Long caption? Take 2–3 shots as you scroll.</li>
+              <li>Add them below. Claude reads them together as one recipe.</li>
+            </ol>
+          </div>
+          <div className="shots">
+            {shots.map((sh, i) => (
+              <div className="shot" key={sh.url}>
+                <img src={sh.url} alt={`Screenshot ${i + 1}`} />
+                <button type="button" onClick={() => setShots(shots.filter((x) => x !== sh))} aria-label="Remove">✕</button>
+              </div>
+            ))}
+            {shots.length < 4 && (
+              <label className="shot add">
+                <input type="file" accept="image/*" multiple onChange={(e) => {
+                  const files = [...(e.target.files || [])].slice(0, 4 - shots.length)
+                  setShots([...shots, ...files.map((f) => ({ file: f, url: URL.createObjectURL(f) }))]); e.target.value = ''
+                }} />
+                <span>＋<br />{shots.length ? 'Add more' : 'Add screenshots'}</span>
+              </label>
+            )}
+          </div>
+          <label>Post link (optional, so you can find the video again)</label>
+          <input type="url" inputMode="url" placeholder="https://www.instagram.com/reel/…" value={url} onChange={(e) => setUrl(e.target.value)} />
+          <button className="primary big" disabled={busy || !shots.length} onClick={importSocial}>{busy ? 'Claude is reading…' : <><Sparkle /> Make it a recipe</>}</button>
+          <button className="link" onClick={() => { setStep('choose'); setErr('') }}>Back</button>
+          {err && <p className="error">{err}</p>}
         </div>
       )}
       {step === 'ai' && (

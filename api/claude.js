@@ -145,7 +145,7 @@ export default async function handler(req, res) {
   const token = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '')
   if (!token) return res.status(401).json({ error: 'Please sign in again.' })
 
-  const { mode = 'chat', householdId, context = '', messages = [], image, text, kind, location } = req.body || {}
+  const { mode = 'chat', householdId, context = '', messages = [], image, images, text, kind, location, source } = req.body || {}
   if (!householdId) return res.status(400).json({ error: 'Missing household.' })
 
   // 1) Who is this? (Supabase checks the login token.)
@@ -189,7 +189,19 @@ export default async function handler(req, res) {
   } else if (mode === 'recipe') {
     const content = []
     if (imageBlock) content.push(imageBlock)
-    content.push({ type: 'text', text: text ? `Recipe text:\n${String(text).slice(0, 20000)}` : 'Read the recipe in this photo.' })
+    // Several screenshots (e.g. an Instagram caption split across shots).
+    const extra = (Array.isArray(images) ? images : []).slice(0, 4)
+      .filter((im) => im?.data && /^image\/(jpeg|png|webp|gif)$/.test(im.media_type || ''))
+    const totalSize = extra.reduce((a, im) => a + String(im.data).length, 0)
+    if (totalSize > 4_000_000) return res.status(413).json({ error: 'Those screenshots are too big together. Try fewer.' })
+    extra.forEach((im) => content.push({ type: 'image', source: { type: 'base64', media_type: im.media_type, data: im.data } }))
+    const social = source === 'social'
+    content.push({
+      type: 'text',
+      text: social
+        ? `These are screenshots of a recipe from a social media post (Instagram/TikTok/Facebook): the caption and/or video frames with text. Read them all together as ONE recipe, in order. Ignore usernames, likes, comments, hashtags and app buttons. If the post lists ingredients without amounts, fill in sensible typical amounts for the servings and say so in notes ("Amounts estimated — the post didn't list them."). If steps are missing, write short clear steps from what the post shows and note that too.${text ? `\nExtra text from the user:\n${String(text).slice(0, 8000)}` : ''}`
+        : text ? `Recipe text:\n${String(text).slice(0, 20000)}` : 'Read the recipe in this photo.',
+    })
     msgs = [{ role: 'user', content }]
     tools = [TOOLS.create_recipe]
     toolChoice = { type: 'tool', name: 'create_recipe' }

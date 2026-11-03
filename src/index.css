@@ -481,3 +481,10 @@ button:active:not(:disabled) { transform: scale(.96); }
 .qa-row.off { opacity: .55; }
 .qa-row .check { width: 26px; height: 26px; margin: 0; display: grid; place-items: center; }
 .already { font-size: 13px; color: var(--warn); font-weight: 600; padding-left: 4px; }
+.notice.soft { background: var(--accent-soft); }
+.shots { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.shot { position: relative; aspect-ratio: 9 / 16; border-radius: 14px; overflow: hidden; background: var(--card); box-shadow: var(--shadow); }
+.shot img { width: 100%; height: 100%; object-fit: cover; }
+.shot button { position: absolute; top: 4px; right: 4px; width: 24px; height: 24px; border-radius: 50%; background: rgba(0,0,0,.55); color: #fff; font-size: 12px; }
+.shot.add { display: grid; place-items: center; text-align: center; border: 2px dashed var(--line); box-shadow: none; color: var(--accent); font-weight: 700; font-size: 13px; cursor: pointer; background: transparent; }
+.shot.add input { display: none; }

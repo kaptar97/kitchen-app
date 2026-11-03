@@ -8,6 +8,11 @@ import { CookSheet } from './cook'
 import { RecipesScreen, RecipeDetailSheet, RecipeFormSheet } from './recipeScreens'
 import { HomeScreen, InventoryScreen, ShoppingScreen, SettingsScreen, ItemActionsSheet } from './screens'
 
+// Something shared into the app from another app's share menu (Android).
+const sp = new URLSearchParams(window.location.search)
+const sharedIn = (sp.get('shared_url') || sp.get('shared_text')) ? { url: sp.get('shared_url') || '', text: [sp.get('shared_title'), sp.get('shared_text')].filter(Boolean).join(' ') } : null
+if (sharedIn) window.history.replaceState({}, '', window.location.pathname)
+
 // Remember an invite code from the link, even across the sign-in step.
 const urlJoin = new URLSearchParams(window.location.search).get('join')
 if (urlJoin) {
@@ -185,6 +190,15 @@ function Main({ session, household }) {
     window.addEventListener('popstate', onPop)
     return () => window.removeEventListener('popstate', onPop)
   }, [])
+  const sharedDone = useRef(false)
+  useEffect(() => {
+    if (!sharedIn || sharedDone.current || hh.loading) return
+    sharedDone.current = true
+    setTabState('recipes')
+    stackRef.current.push(null)
+    setSheetState({ type: 'recipeForm', shared: sharedIn })
+    window.history.pushState({ tab: 'recipes', depth: 1 }, '')
+  }, [hh.loading])
   const openSheet = useCallback((next) => {
     stackRef.current.push(sheetRef.current)
     setSheetState(next)
@@ -259,7 +273,7 @@ function Main({ session, household }) {
       {sheet?.type === 'scan' && <ScannerSheet ctx={ctx} onClose={closeSheet} onResult={onScanResult} />}
       {sheet?.type === 'recipe' && <RecipeDetailSheet ctx={ctx} recipe={sheet.recipe} onClose={closeSheet} onEdit={(r) => openSheet({ type: 'recipeForm', recipe: r })} onToast={showToast} onCook={(r, servings) => openSheet({ type: 'cook', recipe: r, servings })} />}
       {sheet?.type === 'cook' && <CookSheet ctx={ctx} recipe={sheet.recipe} servings={sheet.servings} onClose={closeSheet} onToast={showToast} />}
-      {sheet?.type === 'recipeForm' && <RecipeFormSheet ctx={ctx} locations={hh.locations} recipe={sheet.recipe} onClose={closeSheet} onSaved={(r) => { replaceSheet({ type: 'recipe', recipe: r }); showToast('Recipe saved') }} />}
+      {sheet?.type === 'recipeForm' && <RecipeFormSheet ctx={ctx} locations={hh.locations} recipe={sheet.recipe} shared={sheet.shared} onClose={closeSheet} onSaved={(r) => { replaceSheet({ type: 'recipe', recipe: r }); showToast('Recipe saved') }} />}
       {sheet?.type === 'actions' && <ItemActionsSheet ctx={ctx} row={sheet.row} locations={hh.locations} onClose={closeSheet} onEdit={(row) => openSheet({ type: 'edit', row })} onToast={showToast} />}
       {sheet?.type === 'edit' && <EditSheet ctx={ctx} row={sheet.row} locations={hh.locations} onClose={closeAll} onToast={showToast} />}
       <Toast toast={toast} onDone={clearToast} />
